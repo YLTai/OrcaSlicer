@@ -205,6 +205,8 @@ bool Layer::is_perimeter_compatible(const Print& print, const PrintRegion& a, co
 void Layer::make_perimeters()
 {
     BOOST_LOG_TRIVIAL(trace) << "Generating perimeters for layer " << this->id();
+    this->wave_pins_covered.clear();
+    this->wave_pins_floor.clear();
 
     const auto clear_generated_extrusions = [](LayerRegion *layer_region) {
         layer_region->perimeters.clear();

@@ -38021,3 +38021,158 @@ msgid ""
 msgstr ""
 "避免翘曲\n"
 "您知道吗？打印ABS这类易翘曲材料时，适当提高热床温度可以降低翘曲的概率。"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Enable Wave + Pins (experimental)"
+msgstr "启用 Wave + Pins＋支点（实验性）"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Use laterally anchored Wave paths and sparse support contacts for suitable overhang regions. Uncovered regions retain normal support. Configure Normal automatic Snug support, a positive Top Z distance, and at least one top interface layer on the Support page. Disable this option to use the upstream slicing path."
+msgstr "在适用的悬垂区域使用侧向锚定的 Wave 路径与稀疏支撑接触点。未覆盖的区域保留普通支撑。请在“支撑”页面启用普通自动支撑、紧贴样式，将顶部 Z 间隙设为正值，并设置至少一层顶部支撑面。关闭此选项可使用主线切片流程。"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Maximum Wave reach"
+msgstr "Wave 最大延伸距离"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Maximum unsupported reach considered for a Wave region. Regions beyond this limit retain normal paths and support."
+msgstr "Wave 区域允许的最大无支撑延伸距离。超出此限制的区域保留普通路径和支撑。"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave print speed"
+msgstr "Wave 打印速度"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Maximum speed of the laterally anchored Wave paths. Start with a small full-thickness test piece before increasing this speed."
+msgstr "侧向锚定 Wave 路径的最大打印速度。提高速度前，请先打印一个具有完整实际厚度的小试件。"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave line spacing"
+msgstr "Wave 线间距"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Center-to-center spacing of adjacent Wave paths. Zero derives the spacing from the local nozzle and flow settings. A nonzero value must not exceed the local Wave extrusion width."
+msgstr "相邻 Wave 路径的中心线间距。设为零时，根据局部喷嘴和流量设置计算间距。非零值不得超过局部 Wave 挤出线宽。"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Preserved Wave outer walls"
+msgstr "Wave 保留外墙层数"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Number of normal outer wall loops retained around a Wave region. Regions too thin to preserve these walls retain their normal paths."
+msgstr "在 Wave 区域周围保留的普通外墙圈数。过薄、无法保留这些外墙的区域仍使用普通路径。"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave pin spacing"
+msgstr "Wave 支点间距"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Target spacing of the retained support contacts below Wave regions. These contacts use the normal support generator and the original Top Z distance."
+msgstr "Wave 区域下方保留支撑接触点的目标间距。这些接触点使用普通支撑生成器和原有的顶部 Z 间隙。"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave pin contact diameter"
+msgstr "Wave 支点接触直径"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Requested diameter of each retained contact footprint. The normal support generator may enlarge it. Anti-warp restraint requires some adhesion; the contacts may leave marks on the shell."
+msgstr "每个保留接触区域的目标直径，普通支撑生成器可能将其扩大。抑制上翘需要一定粘接，接触点可能在壳体上留下痕迹。"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave part cooling fan"
+msgstr "Wave 模型冷却风扇"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Part cooling fan override while printing Wave paths. Minus one uses normal filament cooling, including overhang and bridge rules; this can still select full fan speed. Normal cooling control resumes after each Wave path. Validate full fan speed for PETG on a small full-thickness test piece."
+msgstr "打印 Wave 路径时的模型冷却风扇覆盖值。设为负一时，沿用普通耗材冷却控制，包括悬垂和桥接规则，因此仍可能采用全速风扇。每条 Wave 路径结束后恢复普通冷却控制。PETG 使用全速风扇前，请先用具有完整实际厚度的小试件验证。"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave protected upper layers"
+msgstr "Wave 上覆保护层数"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Number of model layers above each Wave region whose intersecting fill is made solid and whose model paths use the Wave upper-layer speed limit. Zero disables this local solid fill and speed protection."
+msgstr "每个 Wave 区域上方需要保护的模型层数：与其重叠的填充改为实心填充，模型路径使用 Wave 上覆层速度限制。设为零时，关闭此局部实心填充与限速保护。"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave upper-layer speed"
+msgstr "Wave 上覆层速度"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Maximum speed of model paths in the protected layers immediately above a Wave region."
+msgstr "紧邻 Wave 区域上方受限速保护层内模型路径的最大速度。"
+
+# AI Translated
+#: src/slic3r/GUI/Tab.cpp
+msgid "Wave + Pins (experimental)"
+msgstr "Wave + Pins＋支点（实验性）"
+
+# AI Translated
+#: src/libslic3r/Print.cpp
+msgid "Wave + Pins requires Normal automatic Snug support, a positive Top Z distance, and at least one top interface layer."
+msgstr "Wave + Pins＋支点需要启用普通自动支撑、紧贴样式，将顶部 Z 间隙设为正值，并设置至少一层顶部支撑面。"
+
+# AI Translated
+#: src/libslic3r/Print.cpp
+msgid "Wave + Pins requires one nozzle and one filament, with raft, spiral vase, and belt printing disabled."
+msgstr "Wave + Pins＋支点要求仅使用一个喷嘴和一种耗材，并关闭筏层、螺旋花瓶与传送带打印。"
+
+# AI Translated
+#: src/libslic3r/Print.cpp
+msgid "A Wave + Pins setting is outside its supported range."
+msgstr "某项 Wave + Pins＋支点设置超出了支持范围。"
+
+# AI Translated
+#: src/libslic3r/Print.cpp
+msgid "Wave pin spacing must exceed the contact diameter, and the contact diameter must be at least the nozzle diameter."
+msgstr "Wave 支点间距必须大于接触直径，且接触直径不得小于喷嘴直径。"
+
+# AI Translated
+#: src/libslic3r/Print.cpp
+msgid "Wave + Pins requires overhang wall detection, enough wall loops to preserve the requested outer walls, and Z anti-aliasing disabled."
+msgstr "Wave + Pins＋支点要求启用悬垂墙检测、设置足够的墙圈数以保留所需外墙，并关闭 Z 抗锯齿。"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp src/slic3r/GUI/Tab.cpp
+msgid "Wave + Pins (experimental)"
+msgstr "Wave + Pins（实验性）"
+
+# AI Translated
+#: src/slic3r/GUI/Tab.cpp
+msgid "Wave paths"
+msgstr "Wave 路径"
+
+# AI Translated
+#: src/slic3r/GUI/Tab.cpp
+msgid "Support pins"
+msgstr "支撑接触点"
+
+# AI Translated
+#: src/slic3r/GUI/Tab.cpp
+msgid "Upper-layer protection"
+msgstr "上覆层保护"
+
+# AI Translated
+#: src/slic3r/GUI/GCodeViewer.cpp
+msgid "Wave path"
+msgstr "Wave 路径"

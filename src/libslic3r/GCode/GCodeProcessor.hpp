@@ -113,6 +113,8 @@ inline constexpr float DEFAULT_FILAMENT_DENSITY = 1.245f;
         //BBS: the flush amount of every filament
         std::map<size_t, double>                            flush_per_filament;
         std::map<ExtrusionRole, std::pair<double, double>>  used_filaments_per_role;
+        // Preview-only subset of the physical roles above; never changes print accounting.
+        std::map<ExtrusionRole, std::pair<double, double>>  used_filaments_wave_pins_per_role;
 
         std::array<Mode, static_cast<size_t>(ETimeMode::Count)> modes;
         unsigned int                                        total_filament_changes;
@@ -143,6 +145,7 @@ inline constexpr float DEFAULT_FILAMENT_DENSITY = 1.245f;
             total_volumes_per_extruder.clear();
             flush_per_filament.clear();
             used_filaments_per_role.clear();
+            used_filaments_wave_pins_per_role.clear();
             total_filament_changes = 0;
             total_flush_filament_changes = 0;
             total_extruder_changes = 0;
@@ -264,6 +267,8 @@ inline constexpr float DEFAULT_FILAMENT_DENSITY = 1.245f;
             //BBS
             int  object_label_id{-1};
             float print_z{0.0f};
+            // Rendering identity, independent of the physical extrusion role.
+            bool wave_pins{ false };
 
             float volumetric_rate() const { return feedrate * mm3_per_mm; }
             float actual_volumetric_rate() const { return actual_feedrate * mm3_per_mm; }
@@ -585,6 +590,8 @@ inline constexpr float DEFAULT_FILAMENT_DENSITY = 1.245f;
         // a CustomETags/CustomTags array. Public so the emission sites (WipeTower / change_filament
         // path) can reference them single-sourced.
         static const std::string Skippable_Start_Tag;
+        static const std::string WavePins_Start_Tag;
+        static const std::string WavePins_End_Tag;
         static const std::string Skippable_End_Tag;
         static const std::string Skippable_Type_Tag;
         // Orca: usage-block builder markers (MACHINE_START_GCODE_END / MACHINE_END_GCODE_START /
@@ -882,6 +889,7 @@ inline constexpr float DEFAULT_FILAMENT_DENSITY = 1.245f;
 
             double role_cache;
             std::map<ExtrusionRole, std::pair<double, double>> filaments_per_role;
+            std::map<ExtrusionRole, std::pair<double, double>> wave_pins_filaments_per_role;
 
             void reset();
 
@@ -1321,6 +1329,7 @@ inline constexpr float DEFAULT_FILAMENT_DENSITY = 1.245f;
 // ORCA: Add Pressure Advance visualization support
         float m_pressure_advance;
         ExtrusionRole m_extrusion_role;
+        bool m_wave_pins_preview{ false };
         std::vector<int> m_filament_maps;
         std::vector<unsigned char> m_last_filament_id;
         std::vector<unsigned char> m_filament_id;

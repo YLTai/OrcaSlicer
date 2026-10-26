@@ -103,6 +103,8 @@ public:
     ExtrusionEntityCollection   *loops;
     ExtrusionEntityCollection   *gap_fill;
     SurfaceCollection           *fill_surfaces;
+    Polygons                     out_wave_pins_covered;
+    std::function<void()>        wave_pins_cancel;
     //BBS
     ExPolygons                  *fill_no_overlap;
 
@@ -170,7 +172,7 @@ public:
 private:
     std::vector<Polygons>     generate_lower_polygons_series(float width);
     void split_top_surfaces(const ExPolygons &orig_polygons, ExPolygons &top_fills, ExPolygons &non_top_polygons, ExPolygons &fill_clip) const;
-    void apply_extra_perimeters(ExPolygons& infill_area);
+    void apply_extra_perimeters(ExPolygons &infill_area, const ExPolygon &island, bool island_has_loops);
     void process_no_bridge(Surfaces& all_surfaces, coord_t perimeter_spacing, coord_t ext_perimeter_width);
 
 private:

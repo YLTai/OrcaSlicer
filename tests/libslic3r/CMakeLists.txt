@@ -46,6 +46,8 @@ add_executable(${_TEST_NAME}_tests
     test_adaptive_infill_field.cpp
     test_geometry.cpp
     test_kdtree.cpp
+    test_wave_pins.cpp
+    test_wave_pins_model_paths.cpp
     test_imex_arrange.cpp
     test_imex_helpers.cpp
     test_imex_zones.cpp

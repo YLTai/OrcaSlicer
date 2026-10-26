@@ -123,6 +123,7 @@ Slic3r::ExtrusionRole convert(EGCodeExtrusionRole role)
     case EGCodeExtrusionRole::Brim:                     { return Slic3r::ExtrusionRole::erBrim; }
     case EGCodeExtrusionRole::SupportTransition:        { return Slic3r::ExtrusionRole::erSupportTransition; }
     case EGCodeExtrusionRole::Mixed:                    { return Slic3r::ExtrusionRole::erMixed; }
+    case EGCodeExtrusionRole::WavePins:                  { return Slic3r::ExtrusionRole::erOverhangPerimeter; }
     default:                                            { return Slic3r::ExtrusionRole::erNone; }
     }
 }
@@ -173,6 +174,12 @@ EMoveType convert(Slic3r::EMoveType type)
     case Slic3r::EMoveType::Extrude:      { return EMoveType::Extrude; }
     default:                              { return EMoveType::COUNT; }
     }
+}
+
+EGCodeExtrusionRole convert(const Slic3r::GCodeProcessorResult::MoveVertex& move)
+{
+    return move.type == Slic3r::EMoveType::Extrude && move.wave_pins
+        ? EGCodeExtrusionRole::WavePins : convert(move.extrusion_role);
 }
 
 // EOptionType convert(const Slic3r::GUI::Preview::OptionType& type)
@@ -231,6 +238,7 @@ static bool starts_path(const Slic3r::GCodeProcessorResult::MoveVertex& prev,
     if (option_type != EOptionType::COUNT && option_type != EOptionType::Travels && option_type != EOptionType::Wipes)
         return false;
     return first_move || prev.type != curr.type || prev.extrusion_role != curr.extrusion_role
+        || prev.wave_pins != curr.wave_pins
         // ORCA: Split the path when a preview value changes.
         || prev.mm3_per_mm != curr.mm3_per_mm || prev.acceleration != curr.acceleration || prev.jerk != curr.jerk;
 }
@@ -286,7 +294,7 @@ GCodeInputData convert(const Slic3r::GCodeProcessorResult& result, const std::ve
             // and the times, which are set to zero
 #if VGCODE_ENABLE_COG_AND_TOOL_MARKERS
             const libvgcode::PathVertex vertex = { xform_pos(prev.position), curr.height, curr.width, curr.feedrate, prev.actual_feedrate,
-                curr.mm3_per_mm, curr.fan_speed, curr.temperature, 0.0f, convert(curr.extrusion_role), curr_type,
+                curr.mm3_per_mm, curr.fan_speed, curr.temperature, 0.0f, convert(curr), curr_type,
                 static_cast<uint32_t>(curr.gcode_id), layer_id,
                 static_cast<uint8_t>(curr.extruder_id), static_cast<uint8_t>(curr.cp_color_id), { 0.0f, 0.0f },
                 /* ORCA: Add Pressure Advance visualization support */ 0.0f, curr.pressure_advance,
@@ -294,7 +302,7 @@ GCodeInputData convert(const Slic3r::GCodeProcessorResult& result, const std::ve
                 /* ORCA: Add Jerk visualization support */ curr.jerk };
 #else
             const libvgcode::PathVertex vertex = { xform_pos(prev.position), curr.height, curr.width, curr.feedrate, prev.actual_feedrate,
-                curr.mm3_per_mm, curr.fan_speed, curr.temperature, convert(curr.extrusion_role), curr_type,
+                curr.mm3_per_mm, curr.fan_speed, curr.temperature, convert(curr), curr_type,
                 static_cast<uint32_t>(curr.gcode_id), layer_id,
                 static_cast<uint8_t>(curr.extruder_id), static_cast<uint8_t>(curr.cp_color_id), { 0.0f, 0.0f },
                 /* ORCA: Add Pressure Advance visualization support */ 0.0f, curr.pressure_advance,
@@ -308,14 +316,14 @@ GCodeInputData convert(const Slic3r::GCodeProcessorResult& result, const std::ve
         const libvgcode::PathVertex vertex = { xform_pos(curr.position), curr.height, curr.width, curr.feedrate, curr.actual_feedrate,
             curr.mm3_per_mm, curr.fan_speed, curr.temperature,
             result.filament_densities[curr.extruder_id] * curr.mm3_per_mm * (curr.position - prev.position).norm(),
-            convert(curr.extrusion_role), curr_type, static_cast<uint32_t>(curr.gcode_id), layer_id,
+            convert(curr), curr_type, static_cast<uint32_t>(curr.gcode_id), layer_id,
             static_cast<uint8_t>(curr.extruder_id), static_cast<uint8_t>(curr.cp_color_id), curr.time,
             /* ORCA: Add Pressure Advance visualization support */ 0.0f, curr.pressure_advance,
             /* ORCA: Add Acceleration visualization support */ curr.acceleration,
             /* ORCA: Add Jerk visualization support */ curr.jerk };
 #else
         const libvgcode::PathVertex vertex = { xform_pos(curr.position), curr.height, curr.width, curr.feedrate, curr.actual_feedrate,
-            curr.mm3_per_mm, curr.fan_speed, curr.temperature, convert(curr.extrusion_role), curr_type,
+            curr.mm3_per_mm, curr.fan_speed, curr.temperature, convert(curr), curr_type,
             static_cast<uint32_t>(curr.gcode_id), layer_id,
             static_cast<uint8_t>(curr.extruder_id), static_cast<uint8_t>(curr.cp_color_id), curr.time,
             /* ORCA: Add Pressure Advance visualization support */ 0.0f, curr.pressure_advance,

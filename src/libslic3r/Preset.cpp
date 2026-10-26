@@ -1259,6 +1259,8 @@ static std::vector<std::string> s_Preset_print_options{
     "support_interface_spacing",
     "support_interface_loop_pattern",
     "support_top_z_distance",
+    "wave_pins_enabled", "wave_pins_max_span", "wave_pins_speed", "wave_pins_spacing", "wave_pins_outer_walls",
+    "wave_pins_pin_spacing", "wave_pins_pin_diameter", "wave_pins_fan_speed", "wave_pins_floor_layers", "wave_pins_floor_speed",
     "support_on_build_plate_only",
     "support_critical_regions_only",
     "bridge_no_support",

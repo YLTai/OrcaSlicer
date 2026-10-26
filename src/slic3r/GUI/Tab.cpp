@@ -3498,6 +3498,26 @@ void TabPrint::build()
         option.opt.height = 25;//250;
         optgroup->append_single_option_line(option, "others_settings_notes");
 
+    // Keep the experimental controls together without changing upstream pages.
+    page = add_options_page(L("Wave + Pins (experimental)"), "custom-gcode_support");
+        optgroup = page->new_optgroup(L("Wave + Pins (experimental)"), L"param_support");
+        optgroup->append_single_option_line("wave_pins_enabled");
+
+        optgroup = page->new_optgroup(L("Wave paths"), L"param_line_width");
+        optgroup->append_single_option_line("wave_pins_max_span");
+        optgroup->append_single_option_line("wave_pins_speed");
+        optgroup->append_single_option_line("wave_pins_spacing");
+        optgroup->append_single_option_line("wave_pins_outer_walls");
+        optgroup->append_single_option_line("wave_pins_fan_speed");
+
+        optgroup = page->new_optgroup(L("Support pins"), L"param_support");
+        optgroup->append_single_option_line("wave_pins_pin_spacing");
+        optgroup->append_single_option_line("wave_pins_pin_diameter");
+
+        optgroup = page->new_optgroup(L("Upper-layer protection"), L"param_layer_height");
+        optgroup->append_single_option_line("wave_pins_floor_layers");
+        optgroup->append_single_option_line("wave_pins_floor_speed");
+
     // Orca: hide the dependencies tab for process for now. The UI is not ready yet.
     // page = add_options_page(L("Dependencies"), "param_profile_dependencies"); // icons ready
     //     optgroup = page->new_optgroup(L("Profile dependencies"), "param_profile_dependencies"); // icons ready

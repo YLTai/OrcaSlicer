@@ -179,6 +179,11 @@ const std::string GCodeProcessor::Skippable_Start_Tag = " SKIPPABLE_START";
 const std::string GCodeProcessor::Skippable_End_Tag   = " SKIPPABLE_END";
 const std::string GCodeProcessor::Skippable_Type_Tag  = " SKIPTYPE: ";
 
+// Persist the experimental preview identity even when ordinary G-code comments
+// are disabled. The physical TYPE/FEATURE role remains unchanged.
+const std::string GCodeProcessor::WavePins_Start_Tag = "_WAVE_PINS_START";
+const std::string GCodeProcessor::WavePins_End_Tag   = "_WAVE_PINS_END";
+
 // Usage-block builder markers. START/END machine-gcode markers are whole-line tags; the
 // NOZZLE_CHANGE_* and CP_TOOLCHANGE_WIPE tags carry an OF/NF/ON/NN or CT/FL payload and are
 // matched with starts_with.
@@ -2539,6 +2544,7 @@ void GCodeProcessor::UsedFilaments::reset()
 
     role_cache = 0.0f;
     filaments_per_role.clear();
+    wave_pins_filaments_per_role.clear();
 
     wipe_tower_cache = 0.0f;
     wipe_tower_volumes_per_filament.clear();
@@ -2660,6 +2666,11 @@ void GCodeProcessor::UsedFilaments::process_role_cache(GCodeProcessor* processor
         }
         else
             filaments_per_role[active_role] = filament;
+        if (processor->m_wave_pins_preview) {
+            auto &wave = wave_pins_filaments_per_role[active_role];
+            wave.first += filament.first;
+            wave.second += filament.second;
+        }
         role_cache = 0.0f;
     }
 }
@@ -3745,6 +3756,7 @@ void GCodeProcessor::reset()
     m_z_offset = 0.0f;
 
     m_extrusion_role = erNone;
+    m_wave_pins_preview = false;
 
     m_filament_id = std::vector<unsigned char>(MAXIMUM_EXTRUDER_NUMBER, static_cast<unsigned char>(-1));
     m_last_filament_id = std::vector<unsigned char>(MAXIMUM_EXTRUDER_NUMBER, static_cast<unsigned char>(-1));
@@ -4401,6 +4413,13 @@ bool GCodeProcessor::get_last_position_from_gcode(const std::string &gcode_str, 
 
 void GCodeProcessor::process_tags(const std::string_view comment, bool producers_enabled)
 {
+    if (comment == WavePins_Start_Tag || comment == WavePins_End_Tag) {
+        // Flush under the previous identity before entering/leaving the scope.
+        m_used_filaments.process_role_cache(this);
+        m_wave_pins_preview = comment == WavePins_Start_Tag;
+        return;
+    }
+
     // producers tags
     if (producers_enabled && process_producers_tags(comment))
         return;
@@ -7577,7 +7596,8 @@ void GCodeProcessor::store_move_vertex(EMoveType type, EMovePathType path_type, 
         std::max<unsigned int>(1, m_layer_id) - 1,
         internal_only,
         m_object_label_id,
-        m_print_z
+        m_print_z,
+        type == EMoveType::Extrude && m_wave_pins_preview
     });
 
     if (type == EMoveType::Seam) {
@@ -7667,6 +7687,9 @@ void GCodeProcessor::set_extrusion_role(ExtrusionRole role)
 {
     m_used_filaments.process_role_cache(this);
     m_extrusion_role = role;
+    // A new physical role also closes a damaged or externally edited scope.
+    // The emitter writes the Wave start marker after the physical role tag.
+    m_wave_pins_preview = false;
 }
 
 // Resolve a SKIPPABLE_TYPE payload to a SkipType. Only meaningful inside a SKIPPABLE region.
@@ -8166,6 +8189,7 @@ void GCodeProcessor::update_estimated_times_stats()
     m_result.print_statistics.support_volumes_per_extruder = m_used_filaments.support_volumes_per_filament;
     m_result.print_statistics.flush_per_filament      = m_used_filaments.flush_per_filament;
     m_result.print_statistics.used_filaments_per_role   = m_used_filaments.filaments_per_role;
+    m_result.print_statistics.used_filaments_wave_pins_per_role = m_used_filaments.wave_pins_filaments_per_role;
     m_result.print_statistics.total_volumes_per_extruder = m_used_filaments.total_volumes_per_filament;
 }
 

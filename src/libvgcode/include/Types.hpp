@@ -163,6 +163,8 @@ enum class EGCodeExtrusionRole : uint8_t
       Brim,
       SupportTransition,
       Mixed,
+      // Preview identity only; existing physical roles and enum values stay unchanged.
+      WavePins,
     COUNT
 };
 

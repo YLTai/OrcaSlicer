@@ -8895,6 +8895,24 @@ std::string GCode::extrude_perimeters(const Print &print, const std::vector<Obje
                 : (m_config.is_infill_first == is_infill_first);
             if (!should_print) continue;
 
+            // Ordered Wave islands stay as collections during routing. Flatten
+            // them here in their stored order, before the native deferred-loop
+            // pass, so residual unsupported walls still wait for their infill.
+            std::vector<const ExtrusionEntity *> wave_pins_perimeters;
+            const std::vector<const ExtrusionEntity *> *perimeters = &region.perimeters;
+            if (m_config.wave_pins_enabled.value) {
+                const auto append_ordered = [&wave_pins_perimeters](const auto &self, const ExtrusionEntity *entity) -> void {
+                    if (const auto *collection = dynamic_cast<const ExtrusionEntityCollection *>(entity)) {
+                        for (const ExtrusionEntity *child : collection->entities)
+                            self(self, child);
+                    } else
+                        wave_pins_perimeters.push_back(entity);
+                };
+                for (const ExtrusionEntity *entity : region.perimeters)
+                    append_ordered(append_ordered, entity);
+                perimeters = &wave_pins_perimeters;
+            }
+
             // Build the printed prefix once in emission order, scoped to this
             // region. Disabled or zero-length wipes need no support geometry.
             std::optional<WipeInwardSupport> wipe_support;
@@ -8913,14 +8931,14 @@ std::string GCode::extrude_perimeters(const Print &print, const std::vector<Obje
             // The deferred pass runs after the infill, so the loops the first pass emitted are
             // already down and belong in the prefix an inward wipe may land on.
             if (wipe_support && defer_unsupported && unsupported_loops_only)
-                for (const ExtrusionEntity* ee : region.perimeters)
+                for (const ExtrusionEntity* ee : *perimeters)
                     if (!waits_for_infill(ee))
                         wipe_support->append(*ee);
 
-            for (const ExtrusionEntity* ee : region.perimeters) {
+            for (const ExtrusionEntity* ee : *perimeters) {
                 if (defer_unsupported && waits_for_infill(ee) != unsupported_loops_only)
                     continue;
-                gcode += this->extrude_entity(*ee, "perimeter", -1., region.perimeters,
+                gcode += this->extrude_entity(*ee, "perimeter", -1., *perimeters,
                                              wipe_support ? &*wipe_support : nullptr);
                 if (wipe_support)
                     wipe_support->append(*ee);
@@ -9634,6 +9652,15 @@ std::string GCode::_extrude(const ExtrusionPath &path, const std::string &path_d
             }
     }
 
+    if (m_config.wave_pins_enabled.value && (path.wave_pins || path.wave_pins_floor)) {
+        // Apply after native overhang/first-layer estimation. Neither that
+        // estimation nor its per-point speeds may undo the experimental cap.
+        const double cap = path.wave_pins ? m_config.wave_pins_speed.value : m_config.wave_pins_floor_speed.value;
+        speed = std::min(speed, cap);
+        for (ProcessedPoint &point : new_points)
+            point.speed = std::min(point.speed, float(cap));
+    }
+
     double F = speed * 60;  // convert mm/sec to mm/min
     
     // Orca: Dynamic PA
@@ -9780,6 +9807,13 @@ std::string GCode::_extrude(const ExtrusionPath &path, const std::string &path_d
     //    { "75%", Overhang_threshold_4_4 },
     //    { "95%", Overhang_threshold_bridge }
     std::string comment;
+    const bool wave_pins_preview_scope = m_config.wave_pins_enabled.value && path.wave_pins;
+    if (wave_pins_preview_scope)
+        gcode += ";" + GCodeProcessor::WavePins_Start_Tag + "\n";
+    const bool wave_pins_fan_scope = m_config.wave_pins_enabled.value && path.wave_pins &&
+        m_config.wave_pins_fan_speed.value >= 0 && m_enable_cooling_markers;
+    if (wave_pins_fan_scope)
+        gcode += ";_WAVE_PINS_FAN_START " + std::to_string(m_config.wave_pins_fan_speed.value) + "\n";
     if (m_enable_cooling_markers) {
         comment = ";_EXTRUDE_SET_SPEED";
         if (is_external_perimeter(path.role()))
@@ -9825,7 +9859,7 @@ std::string GCode::_extrude(const ExtrusionPath &path, const std::string &path_d
     // farthest-from-camera point while extruding, take the snapshot in place (skip_pos_pick → M971 inline
     // photo, no travel). Early-returns unless the subsystem is enabled AND the farthest point is on the
     // photo head, so it is a no-op for every printer that leaves the toggle off.
-    auto check_and_insert_timelapse = [this, &gcode](const Point &endpoint_scaled) {
+    auto check_and_insert_timelapse = [this, &gcode, wave_pins_preview_scope, physical_role = path.role()](const Point &endpoint_scaled) {
         if (!m_farthest_point_timelapse.enabled || !m_farthest_point_timelapse.farthest_is_photo_head || m_farthest_point_timelapse.inserted_this_layer)
             return;
         // Inline M971 only when current extruder is the photo head; other nozzles may pass through nearby
@@ -9844,7 +9878,16 @@ std::string GCode::_extrude(const ExtrusionPath &path, const std::string &path_d
         std::string timelapse_gcode = generate_timelapse_gcode(*m_print, m_layer->print_z, m_farthest_point_timelapse.most_used_extruder,
                                                                &m_farthest_point_timelapse.layer_object_label_ids, &m_printed_objects, true);
         if (!timelapse_gcode.empty()) {
+            if (wave_pins_preview_scope)
+                gcode += ";" + GCodeProcessor::WavePins_End_Tag + "\n";
             gcode += timelapse_gcode;
+            if (wave_pins_preview_scope) {
+                // Custom timelapse commands belong outside the Wave preview
+                // scope, and may themselves carry a different physical role.
+                gcode += ";" + GCodeProcessor::reserved_tag(GCodeProcessor::ETags::Role) +
+                         ExtrusionEntity::role_to_string(physical_role) + "\n";
+                gcode += ";" + GCodeProcessor::WavePins_Start_Tag + "\n";
+            }
             m_farthest_point_timelapse.inserted_this_layer = true;
         }
     };
@@ -10177,6 +10220,10 @@ std::string GCode::_extrude(const ExtrusionPath &path, const std::string &path_d
     if (m_enable_cooling_markers) {
             gcode += ";_EXTRUDE_END\n";
     }
+    if (wave_pins_fan_scope)
+        gcode += ";_WAVE_PINS_FAN_END\n";
+    if (wave_pins_preview_scope)
+        gcode += ";" + GCodeProcessor::WavePins_End_Tag + "\n";
 
     if (path.role() != ExtrusionRole::erGapFill) {
       m_last_notgapfill_extrusion_role = path.role();

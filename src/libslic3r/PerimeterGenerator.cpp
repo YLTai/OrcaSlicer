@@ -8,6 +8,8 @@
 #include "ExtrusionEntity.hpp"
 #include "ExtrusionEntityCollection.hpp"
 #include "Feature/FuzzySkin/FuzzySkin.hpp"
+#include "WavePins/ModelPaths.hpp"
+#include "WavePins/Wave.hpp"
 #include "Polygon.hpp"
 #include "Polyline.hpp"
 #include "Point.hpp"
@@ -1330,8 +1332,31 @@ std::tuple<std::vector<ExtrusionPaths>, Polygons> generate_extra_perimeters_over
     return {extra_perims, diff(inset_overhang_area, inset_overhang_area_left_unfilled)};
 }
 
-void PerimeterGenerator::apply_extra_perimeters(ExPolygons &infill_area)
+void PerimeterGenerator::apply_extra_perimeters(ExPolygons &infill_area, const ExPolygon &island, bool island_has_loops)
 {
+    if (this->object_config->wave_pins_enabled && !m_spiral_vase && island_has_loops &&
+        this->lower_slices != nullptr && this->config->detect_overhang_wall &&
+        this->config->wall_loops > 0 && this->layer_id > this->object_config->raft_layers && this->gap_fill != nullptr) {
+        // All geometry and clipping live in the experiment module. The disabled
+        // branch below remains the unmodified upstream extra-perimeter path.
+        if (auto *island_paths = dynamic_cast<ExtrusionEntityCollection *>(this->loops->entities.back())) {
+            const int outer = std::max(1, std::min(this->object_config->wave_pins_outer_walls.value, this->config->wall_loops.value));
+            WavePins::Params params;
+            params.flow = this->overhang_flow;
+            params.line_spacing = this->object_config->wave_pins_spacing.value;
+            params.max_span = this->object_config->wave_pins_max_span.value;
+            params.scaled_resolution = this->m_scaled_resolution;
+            params.perimeter_count = std::max(1, this->config->wall_loops.value - outer);
+            params.throw_if_canceled = this->wave_pins_cancel;
+            Polygons covered = WavePins::apply_to_island(island, to_polygons(*this->lower_slices), params,
+                double(this->perimeter_flow.scaled_spacing()) * outer, outer,
+                *island_paths, *this->gap_fill, *this->fill_surfaces);
+            if (!covered.empty()) {
+                append(this->out_wave_pins_covered, std::move(covered));
+                return;
+            }
+        }
+    }
     if (!m_spiral_vase && this->lower_slices != nullptr && this->config->detect_overhang_wall && this->config->extra_perimeters_on_overhangs &&
         this->config->wall_loops > 0 && this->layer_id > this->object_config->raft_layers) {
         // Generate extra perimeters on overhang areas, and cut them to these parts only, to save print time and material
@@ -1541,6 +1566,7 @@ void PerimeterGenerator::process_classic()
     const bool only_one_wall_first_layer = this->config->only_one_wall_first_layer && has_bottom_shell_layers(*this->config);
     for (size_t order_idx = 0; order_idx < surface_order.size(); order_idx++) {
         const Surface &surface = all_surfaces[surface_order[order_idx]];
+        const size_t island_loops_begin = this->loops->entities.size();
         // detect how many perimeters must be generated for this island
         int loop_number = this->config->wall_loops + surface.extra_perimeters - 1;  // 0-indexed loops
         int sparse_infill_density = this->config->sparse_infill_density.value;
@@ -2077,7 +2103,7 @@ void PerimeterGenerator::process_classic()
             infill_exp = union_ex(infill_exp, one_wall_top_reclaimed);
         this->fill_surfaces->append(infill_exp, stInternal);
 
-        apply_extra_perimeters(infill_exp);
+        apply_extra_perimeters(infill_exp, surface.expolygon, this->loops->entities.size() > island_loops_begin);
 
         // BBS: get the no-overlap infill expolygons
         {
@@ -3063,12 +3089,13 @@ void PerimeterGenerator::process_arachne()
             }
       }
     });
-    for (ArachneSurfaceResult &result : results) {
+    for (size_t result_idx = 0; result_idx < results.size(); ++result_idx) {
+        ArachneSurfaceResult &result = results[result_idx];
         if (result.has_loops)
             // Moved, not copied: append(const ExtrusionEntity &) clones the whole wall tree of the island.
             this->loops->append(std::move(result.loops));
         this->fill_surfaces->append(result.infill, stInternal);
-        apply_extra_perimeters(result.infill);
+        apply_extra_perimeters(result.infill, all_surfaces[result_idx].expolygon, result.has_loops);
         append(*this->fill_no_overlap, std::move(result.no_overlap));
     }
 }

@@ -7318,6 +7318,105 @@ void PrintConfigDef::init_fff_params()
     def->tooltip = L("This enables support generation.");
     def->set_default_value(new ConfigOptionBool(false));
 
+    def = this->add("wave_pins_enabled", coBool);
+    def->label = L("Enable Wave + Pins (experimental)");
+    def->category = L("Wave + Pins (experimental)");
+    def->tooltip = L("Use laterally anchored Wave paths and sparse support contacts for suitable overhang regions. "
+                     "Uncovered regions retain normal support. Configure Normal automatic Snug support, a positive Top Z distance, and at least one top interface layer on the Support page. "
+                     "Disable this option to use the upstream slicing path.");
+    def->mode = comSimple;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def = this->add("wave_pins_max_span", coFloat);
+    def->label = L("Maximum Wave reach");
+    def->category = L("Wave + Pins (experimental)");
+    def->tooltip = L("Maximum unsupported reach considered for a Wave region. Regions beyond this limit retain normal paths and support.");
+    def->sidetext = L("mm");
+    def->min = 1;
+    def->max = 50;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(12));
+
+    def = this->add("wave_pins_speed", coFloat);
+    def->label = L("Wave print speed");
+    def->category = L("Wave + Pins (experimental)");
+    def->tooltip = L("Maximum speed of the laterally anchored Wave paths. Start with a small full-thickness test piece before increasing this speed.");
+    def->sidetext = L("mm/s");
+    def->min = 0.1;
+    def->max = 50;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(2));
+
+    def = this->add("wave_pins_spacing", coFloat);
+    def->label = L("Wave line spacing");
+    def->category = L("Wave + Pins (experimental)");
+    def->tooltip = L("Center-to-center spacing of adjacent Wave paths. Zero derives the spacing from the local nozzle and flow settings. A nonzero value must not exceed the local Wave extrusion width.");
+    def->sidetext = L("mm");
+    def->min = 0;
+    def->max = 2;
+    def->mode = comExpert;
+    def->set_default_value(new ConfigOptionFloat(0));
+
+    def = this->add("wave_pins_outer_walls", coInt);
+    def->label = L("Preserved Wave outer walls");
+    def->category = L("Wave + Pins (experimental)");
+    def->tooltip = L("Number of normal outer wall loops retained around a Wave region. Regions too thin to preserve these walls retain their normal paths.");
+    def->min = 1;
+    def->max = 10;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(1));
+
+    def = this->add("wave_pins_pin_spacing", coFloat);
+    def->label = L("Wave pin spacing");
+    def->category = L("Wave + Pins (experimental)");
+    def->tooltip = L("Target spacing of the retained support contacts below Wave regions. These contacts use the normal support generator and the original Top Z distance.");
+    def->sidetext = L("mm");
+    def->min = 2;
+    def->max = 100;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(8));
+
+    def = this->add("wave_pins_pin_diameter", coFloat);
+    def->label = L("Wave pin contact diameter");
+    def->category = L("Wave + Pins (experimental)");
+    def->tooltip = L("Requested diameter of each retained contact footprint. The normal support generator may enlarge it. "
+                     "Anti-warp restraint requires some adhesion; the contacts may leave marks on the shell.");
+    def->sidetext = L("mm");
+    def->min = 0.4;
+    def->max = 10;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(1.2));
+
+    def = this->add("wave_pins_fan_speed", coInt);
+    def->label = L("Wave part cooling fan");
+    def->category = L("Wave + Pins (experimental)");
+    def->tooltip = L("Part cooling fan override while printing Wave paths. Minus one uses normal filament cooling, including overhang and bridge rules; this can still select full fan speed. "
+                     "Normal cooling control resumes after each Wave path. Validate full fan speed for PETG on a small full-thickness test piece.");
+    def->sidetext = "%";
+    def->min = -1;
+    def->max = 100;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(-1));
+
+    def = this->add("wave_pins_floor_layers", coInt);
+    def->label = L("Wave protected upper layers");
+    def->category = L("Wave + Pins (experimental)");
+    def->tooltip = L("Number of model layers above each Wave region whose intersecting fill is made solid and whose model paths use the Wave upper-layer speed limit. Zero disables this local solid fill and speed protection.");
+    def->min = 0;
+    def->max = 10;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionInt(3));
+
+    def = this->add("wave_pins_floor_speed", coFloat);
+    def->label = L("Wave upper-layer speed");
+    def->category = L("Wave + Pins (experimental)");
+    def->tooltip = L("Maximum speed of model paths in the protected layers immediately above a Wave region.");
+    def->sidetext = L("mm/s");
+    def->min = 0.1;
+    def->max = 200;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(20));
+
     def = this->add("support_type", coEnum);
     def->label = L("Type");
     def->category = L("Support");

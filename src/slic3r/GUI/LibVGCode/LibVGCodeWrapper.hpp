@@ -59,6 +59,9 @@ extern Slic3r::ExtrusionRole convert(EGCodeExtrusionRole role);
 // mapping from Slic3r::ExtrusionRole to libvgcode::EGCodeExtrusionRole
 extern EGCodeExtrusionRole convert(Slic3r::ExtrusionRole role);
 
+// Move preview identity, without changing its physical extrusion role.
+extern EGCodeExtrusionRole convert(const Slic3r::GCodeProcessorResult::MoveVertex& move);
+
 // mapping from Slic3r::EMoveType to libvgcode::EMoveType
 extern EMoveType convert(Slic3r::EMoveType type);
 

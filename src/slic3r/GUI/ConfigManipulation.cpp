@@ -1039,6 +1039,16 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig *config, in
         toggle_field("raft_layers", false);
     bool have_support_material = config->opt_bool("enable_support") || have_raft;
 
+    // The dedicated Wave + Pins page always retains its master switch.
+    const bool wave_pins_enabled = config->opt_bool("wave_pins_enabled");
+    for (const char *key : {"wave_pins_max_span", "wave_pins_speed", "wave_pins_spacing", "wave_pins_outer_walls",
+                           "wave_pins_pin_spacing", "wave_pins_pin_diameter", "wave_pins_fan_speed", "wave_pins_floor_layers"}) {
+        toggle_line(key, wave_pins_enabled);
+        toggle_field(key, wave_pins_enabled);
+    }
+    toggle_line("wave_pins_floor_speed", wave_pins_enabled);
+    toggle_field("wave_pins_floor_speed", wave_pins_enabled && config->opt_int("wave_pins_floor_layers") > 0);
+
     SupportType support_type = config->opt_enum<SupportType>("support_type");
     bool have_support_interface = config->opt_int("support_interface_top_layers") > 0 || config->opt_int("support_interface_bottom_layers") > 0;
     bool have_support_soluble = have_support_material && config->opt_float("support_top_z_distance") == 0;

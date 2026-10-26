@@ -14,6 +14,7 @@ add_executable(${_TEST_NAME}_tests
     test_colour_picker_field.cpp
     test_filament_color_picker.cpp
     test_gcode_preview_colors.cpp
+    test_wave_pins_preview.cpp
     test_device_progress.cpp
     test_device_manager_integration.cpp
     test_web_media_controller.cpp

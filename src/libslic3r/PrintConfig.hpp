@@ -1307,6 +1307,17 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,               slice_closing_radius))
     ((ConfigOptionEnum<SlicingMode>,   slicing_mode))
     ((ConfigOptionBool,                enable_support))
+    // Native Wave + Pins experiment. The disabled default preserves upstream slicing.
+    ((ConfigOptionBool,                wave_pins_enabled))
+    ((ConfigOptionFloat,               wave_pins_max_span))
+    ((ConfigOptionFloat,               wave_pins_speed))
+    ((ConfigOptionFloat,               wave_pins_spacing))
+    ((ConfigOptionInt,                 wave_pins_outer_walls))
+    ((ConfigOptionFloat,               wave_pins_pin_spacing))
+    ((ConfigOptionFloat,               wave_pins_pin_diameter))
+    ((ConfigOptionInt,                 wave_pins_fan_speed))
+    ((ConfigOptionInt,                 wave_pins_floor_layers))
+    ((ConfigOptionFloat,               wave_pins_floor_speed))
     // Automatic supports (generated based on support_threshold_angle).
     ((ConfigOptionEnum<SupportType>,   support_type))
     // Direction of the support pattern (in XY plane).`

@@ -31277,3 +31277,127 @@ msgstr ""
 #: resources/data/hints.ini: [hint:Avoid warping]
 msgid "Avoid warping\nDid you know that when printing materials that are prone to warping such as ABS, appropriately increasing the heatbed temperature can reduce the probability of warping?"
 msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Enable Wave + Pins (experimental)"
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Use laterally anchored Wave paths and sparse support contacts for suitable overhang regions. Uncovered regions retain normal support. Configure Normal automatic Snug support, a positive Top Z distance, and at least one top interface layer on the Support page. Disable this option to use the upstream slicing path."
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Maximum Wave reach"
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Maximum unsupported reach considered for a Wave region. Regions beyond this limit retain normal paths and support."
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave print speed"
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Maximum speed of the laterally anchored Wave paths. Start with a small full-thickness test piece before increasing this speed."
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave line spacing"
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Center-to-center spacing of adjacent Wave paths. Zero derives the spacing from the local nozzle and flow settings. A nonzero value must not exceed the local Wave extrusion width."
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Preserved Wave outer walls"
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Number of normal outer wall loops retained around a Wave region. Regions too thin to preserve these walls retain their normal paths."
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave pin spacing"
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Target spacing of the retained support contacts below Wave regions. These contacts use the normal support generator and the original Top Z distance."
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave pin contact diameter"
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Requested diameter of each retained contact footprint. The normal support generator may enlarge it. Anti-warp restraint requires some adhesion; the contacts may leave marks on the shell."
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave part cooling fan"
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Part cooling fan override while printing Wave paths. Minus one uses normal filament cooling, including overhang and bridge rules; this can still select full fan speed. Normal cooling control resumes after each Wave path. Validate full fan speed for PETG on a small full-thickness test piece."
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave protected upper layers"
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Number of model layers above each Wave region whose intersecting fill is made solid and whose model paths use the Wave upper-layer speed limit. Zero disables this local solid fill and speed protection."
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Wave upper-layer speed"
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Maximum speed of model paths in the protected layers immediately above a Wave region."
+msgstr ""
+
+#: src/slic3r/GUI/Tab.cpp
+msgid "Wave + Pins (experimental)"
+msgstr ""
+
+#: src/libslic3r/Print.cpp
+msgid "Wave + Pins requires Normal automatic Snug support, a positive Top Z distance, and at least one top interface layer."
+msgstr ""
+
+#: src/libslic3r/Print.cpp
+msgid "Wave + Pins requires one nozzle and one filament, with raft, spiral vase, and belt printing disabled."
+msgstr ""
+
+#: src/libslic3r/Print.cpp
+msgid "A Wave + Pins setting is outside its supported range."
+msgstr ""
+
+#: src/libslic3r/Print.cpp
+msgid "Wave pin spacing must exceed the contact diameter, and the contact diameter must be at least the nozzle diameter."
+msgstr ""
+
+#: src/libslic3r/Print.cpp
+msgid "Wave + Pins requires overhang wall detection, enough wall loops to preserve the requested outer walls, and Z anti-aliasing disabled."
+msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp src/slic3r/GUI/Tab.cpp
+msgid "Wave + Pins (experimental)"
+msgstr ""
+
+#: src/slic3r/GUI/Tab.cpp
+msgid "Wave paths"
+msgstr ""
+
+#: src/slic3r/GUI/Tab.cpp
+msgid "Support pins"
+msgstr ""
+
+#: src/slic3r/GUI/Tab.cpp
+msgid "Upper-layer protection"
+msgstr ""
+
+#: src/slic3r/GUI/GCodeViewer.cpp
+msgid "Wave path"
+msgstr ""

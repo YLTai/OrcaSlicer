@@ -4,6 +4,7 @@
 #include "ExtrusionEntityCollection.hpp"
 #include "libslic3r/Flow.hpp"
 #include "Layer.hpp"
+#include "libslic3r/WavePins/SupportPins.hpp"
 #include "libslic3r/Polygon.hpp"
 #include "libslic3r/Polyline.hpp"
 #include "Print.hpp"
@@ -2411,12 +2412,33 @@ SupportGeneratorLayersPtr PrintObjectSupportMaterial::top_contact_layers(
         Polygons            lower_layer_polygons = (layer_id == 0) ? Polygons() : to_polygons(object.layers()[layer_id - 1]->lslices);
         SlicesMarginCache   slices_margin;
 
+        const bool wave_pins = m_object_config->wave_pins_enabled.value && !layer.wave_pins_covered.empty();
+        if (wave_pins) {
+            // Native bridge detection may omit these regions. Retain discrete
+            // contacts beneath actual wave extrusion, respecting support paint.
+            Polygons wave_overhang = diff(layer.wave_pins_covered, lower_layer_polygons);
+            if (!annotations.blockers_layers.empty())
+                wave_overhang = diff(wave_overhang, annotations.blockers_layers[layer_id]);
+            if (!annotations.buildplate_covered.empty())
+                wave_overhang = diff(wave_overhang, annotations.buildplate_covered[layer_id]);
+            overhang_polygons = union_(overhang_polygons, wave_overhang);
+        }
+
         auto [contact_polygons, enforcer_polygons, no_interface_offset] =
             detect_contacts(layer, layer_id, overhang_polygons, lower_layer_polygons, *m_print_config, *m_object_config, annotations, slices_margin, m_support_params.gap_xy
 #ifdef SLIC3R_DEBUG
                 , iRun
 #endif // SLIC3R_DEBUG
             );
+
+        WavePins::PinContacts wave_contacts;
+        if (wave_pins) {
+            wave_contacts = WavePins::plan_pin_contacts(contact_polygons, layer.wave_pins_covered,
+                enforcer_polygons, m_object_config->wave_pins_pin_spacing.value,
+                m_object_config->wave_pins_pin_diameter.value);
+            contact_polygons = diff(contact_polygons, wave_contacts.removable);
+            overhang_polygons = diff(overhang_polygons, wave_contacts.removable);
+        }
 
         // Now apply the contact areas to the layer where they need to be made.
         if (!contact_polygons.empty() || !overhang_polygons.empty()) {
@@ -2431,6 +2453,16 @@ SupportGeneratorLayersPtr PrintObjectSupportMaterial::top_contact_layers(
                     , iRun, layer
 #endif // SLIC3R_DEBUG
                 );
+                if (!wave_contacts.removable.empty()) {
+                    // Snug contact expansion must not close the deliberate gaps.
+                    // Native layers below these contacts still build their normal
+                    // load-bearing support and retain the configured top Z gap.
+                    new_layer->polygons = diff(new_layer->polygons, wave_contacts.removable);
+                    if (new_layer->contact_polygons)
+                        *new_layer->contact_polygons = diff(*new_layer->contact_polygons, wave_contacts.removable);
+                    if (new_layer->overhang_polygons)
+                        *new_layer->overhang_polygons = diff(*new_layer->overhang_polygons, wave_contacts.removable);
+                }
                 // Insert new layer even if there is no interface generated: Likely the support angle is not steep enough to require dense interface,
                 // however generating a sparse support will be useful for the object stability.
                 // if (! new_layer->polygons.empty())

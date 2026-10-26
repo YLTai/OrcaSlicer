@@ -18,6 +18,8 @@ add_executable(${_TEST_NAME}_tests
 	test_gcodewriter.cpp
 	test_imex_mode_gcode.cpp
 	test_imex_slice_offset.cpp
+	test_wave_pins.cpp
+	test_wave_pins_preview.cpp
 	test_model.cpp
 	test_multifilament.cpp
 	test_multimaterial_segmentation.cpp

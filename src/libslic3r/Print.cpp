@@ -1990,6 +1990,45 @@ StringObjectException Print::validate(std::vector<StringObjectException> *warnin
     if (extruders.empty())
         return { L("No extrusions under current settings.") };
 
+    for (const PrintObject *object : m_objects) {
+        const PrintObjectConfig &config = object->config();
+        if (!config.wave_pins_enabled.value)
+            continue;
+        if (!config.enable_support.value || config.support_type.value != stNormalAuto ||
+            config.support_style.value != smsSnug || config.support_top_z_distance.value <= 0. ||
+            config.support_interface_top_layers.value < 1)
+            return { L("Wave + Pins requires Normal automatic Snug support, a positive Top Z distance, and at least one top interface layer."),
+                     object, "wave_pins_enabled" };
+        if (nozzles != 1 || extruders.size() != 1 || m_config.belt_printer.value ||
+            m_config.spiral_mode.value || config.raft_layers.value != 0)
+            return { L("Wave + Pins requires one nozzle and one filament, with raft, spiral vase, and belt printing disabled."),
+                     object, "wave_pins_enabled" };
+        const auto in_range = [](double value, double minimum, double maximum) {
+            return std::isfinite(value) && value >= minimum && value <= maximum;
+        };
+        if (!in_range(config.wave_pins_max_span.value, 1., 50.) ||
+            !in_range(config.wave_pins_speed.value, 0.1, 50.) ||
+            !in_range(config.wave_pins_spacing.value, 0., 2.) ||
+            !in_range(config.wave_pins_outer_walls.value, 1., 10.) ||
+            !in_range(config.wave_pins_pin_spacing.value, 2., 100.) ||
+            !in_range(config.wave_pins_pin_diameter.value, 0.4, 10.) ||
+            !in_range(config.wave_pins_fan_speed.value, -1., 100.) ||
+            !in_range(config.wave_pins_floor_layers.value, 0., 10.) ||
+            !in_range(config.wave_pins_floor_speed.value, 0.1, 200.))
+            return { L("A Wave + Pins setting is outside its supported range."), object, "wave_pins_enabled" };
+        if (config.wave_pins_pin_spacing.value <= config.wave_pins_pin_diameter.value ||
+            config.wave_pins_pin_diameter.value < m_config.nozzle_diameter.values.front())
+            return { L("Wave pin spacing must exceed the contact diameter, and the contact diameter must be at least the nozzle diameter."),
+                     object, "wave_pins_pin_diameter" };
+        for (size_t region_id = 0; region_id < object->num_printing_regions(); ++region_id) {
+            const PrintRegionConfig &region = object->printing_region(region_id).config();
+            if (!region.detect_overhang_wall.value || region.wall_loops.value < config.wave_pins_outer_walls.value ||
+                region.zaa_enabled.value)
+                return { L("Wave + Pins requires overhang wall detection, enough wall loops to preserve the requested outer walls, and Z anti-aliasing disabled."),
+                         object, "wave_pins_enabled" };
+        }
+    }
+
     // A flow ratio of 0 would extrude nothing, and a nil one would write NaN extrusion lengths.
     {
         const std::vector<double> &flow_ratios = m_config.filament_flow_ratio.values;
@@ -5898,6 +5937,7 @@ const std::string PrintStatistics::TotalFilamentUsedWipeTowerValueMask = "; tota
 #define JSON_ARC_FITTING            "arc_fitting"
 #define JSON_OBJECT_NAME            "name"
 #define JSON_IDENTIFY_ID          "identify_id"
+#define JSON_WAVE_PINS_CACHE       "wave_pins_cache"
 
 
 #define JSON_LAYERS                  "layers"
@@ -5918,6 +5958,8 @@ const std::string PrintStatistics::TotalFilamentUsedWipeTowerValueMask = "; tota
 #define JSON_LAYER_SLLICED_BBOXES      "sliced_bboxes"
 #define JSON_LAYER_OVERHANG_POLYGONS    "overhang_polygons"
 #define JSON_LAYER_OVERHANG_BBOX       "overhang_bbox"
+#define JSON_LAYER_WAVE_PINS_COVERED    "wave_pins_covered"
+#define JSON_LAYER_WAVE_PINS_FLOOR      "wave_pins_floor"
 
 #define JSON_SUPPORT_LAYER_ISLANDS                  "support_islands"
 #define JSON_SUPPORT_LAYER_FILLS                    "support_fills"
@@ -5976,6 +6018,8 @@ const std::string PrintStatistics::TotalFilamentUsedWipeTowerValueMask = "; tota
 #define JSON_EXTRUSION_ROLE                    "role"
 #define JSON_EXTRUSION_NO_EXTRUSION            "no_extrusion"
 #define JSON_EXTRUSION_LOOP_ROLE               "loop_role"
+#define JSON_EXTRUSION_WAVE_PINS                "wave_pins"
+#define JSON_EXTRUSION_WAVE_PINS_FLOOR          "wave_pins_floor"
 
 
 static void to_json(json& j, const Points& p_s) {
@@ -6068,6 +6112,12 @@ static void to_json(json& j, const ExtrusionPath& extrusion_path) {
     j[JSON_EXTRUSION_HEIGHT] = extrusion_path.height;
     j[JSON_EXTRUSION_ROLE] = extrusion_path.role();
     j[JSON_EXTRUSION_NO_EXTRUSION] = extrusion_path.is_force_no_extrusion();
+    // Leave ordinary cache output unchanged. Wave process flags must survive
+    // reloading so the geometry cannot be exported with ordinary wall speeds.
+    if (extrusion_path.wave_pins)
+        j[JSON_EXTRUSION_WAVE_PINS] = true;
+    if (extrusion_path.wave_pins_floor)
+        j[JSON_EXTRUSION_WAVE_PINS_FLOOR] = true;
 }
 
 static bool convert_extrusion_to_json(json& entity_json, json& entity_paths_json, const ExtrusionEntity* extrusion_entity) {
@@ -6345,6 +6395,10 @@ static void from_json(const json& j, ExtrusionPath& extrusion_path) {
     extrusion_path.height                 =    j[JSON_EXTRUSION_HEIGHT];
     extrusion_path.set_extrusion_role(j[JSON_EXTRUSION_ROLE]);
     extrusion_path.set_force_no_extrusion(j[JSON_EXTRUSION_NO_EXTRUSION]);
+    extrusion_path.wave_pins = j.value(JSON_EXTRUSION_WAVE_PINS, false);
+    extrusion_path.wave_pins_floor = j.value(JSON_EXTRUSION_WAVE_PINS_FLOOR, false);
+    if (extrusion_path.wave_pins)
+        extrusion_path.set_reverse();
 }
 
 static bool convert_extrusion_from_json(const json& entity_json, ExtrusionEntityCollection& entity_collection) {
@@ -6529,6 +6583,21 @@ static void convert_layer_region_from_json(const json& j, LayerRegion& layer_reg
 
 
 void extract_layer(const json& layer_json, Layer& layer) {
+    // Older and ordinary cache files have no WavePins masks.
+    auto read_wave_mask = [&layer_json](const char *key, Polygons &polygons) {
+        polygons.clear();
+        const auto found = layer_json.find(key);
+        if (found == layer_json.end())
+            return;
+        for (const json &points_json : *found) {
+            Polygon polygon;
+            polygon.points = points_json;
+            polygons.emplace_back(std::move(polygon));
+        }
+    };
+    read_wave_mask(JSON_LAYER_WAVE_PINS_COVERED, layer.wave_pins_covered);
+    read_wave_mask(JSON_LAYER_WAVE_PINS_FLOOR, layer.wave_pins_floor);
+
     //slice_polygons
     int slice_polygons_count = layer_json[JSON_LAYER_SLICED_POLYGONS].size();
     for (int polygon_index = 0; polygon_index < slice_polygons_count; polygon_index++)
@@ -6631,6 +6700,20 @@ static void from_json(const json& j, groupedVolumeSlices& firstlayer_group)
     }
 }
 
+static json wave_pins_cache_signature(const PrintObject &object)
+{
+    json settings = json::object();
+    for (const std::string &key : object.config().keys_ref())
+        if (key.compare(0, 9, "wave_pins_") == 0)
+            settings[key] = object.config().opt_serialize(key);
+    // Region hashes are checked by the existing loader. Also reject stale
+    // object/printer settings (for example contact gaps or nozzle diameter).
+    return {{"version", 1},
+            {"settings", std::move(settings)},
+            {"object_config_hash", object.config().hash()},
+            {"print_config_hash", object.print()->config().hash()}};
+}
+
 int Print::export_cached_data(const std::string& directory, bool with_space)
 {
     int ret = 0;
@@ -6643,6 +6726,19 @@ int Print::export_cached_data(const std::string& directory, bool with_space)
         layer_json[JSON_LAYER_SLICE_Z] = layer->slice_z;
         layer_json[JSON_LAYER_ID] = layer->id();
         //layer_json["slicing_errors"] = layer->slicing_errors;
+
+        auto write_wave_mask = [&layer_json](const char *key, const Polygons &polygons) {
+            if (polygons.empty())
+                return;
+            json mask = json::array();
+            for (const Polygon &polygon : polygons) {
+                json points_json = polygon.points;
+                mask.push_back(std::move(points_json));
+            }
+            layer_json[key] = std::move(mask);
+        };
+        write_wave_mask(JSON_LAYER_WAVE_PINS_COVERED, layer->wave_pins_covered);
+        write_wave_mask(JSON_LAYER_WAVE_PINS_FLOOR, layer->wave_pins_floor);
 
         //sliced_polygons
         for (const ExPolygon& slice_polygon : layer->lslices) {
@@ -6718,6 +6814,8 @@ int Print::export_cached_data(const std::string& directory, bool with_space)
 
             root_json[JSON_OBJECT_NAME] = model_obj->name;
             root_json[JSON_IDENTIFY_ID] = identify_id;
+            if (obj->config().wave_pins_enabled.value)
+                root_json[JSON_WAVE_PINS_CACHE] = wave_pins_cache_signature(*obj);
 
             //export the layers
             std::vector<json> layers_json_vector(obj->layer_count());
@@ -6978,6 +7076,17 @@ int Print::load_cached_data(const std::string& directory)
         PrintObject *obj = object_filenames[obj_index].second;
 
         try {
+            // Ordinary cache files remain byte-compatible. Experimental caches
+            // are usable only with the same enabled feature and configurations.
+            const bool has_wave_cache = root_json.contains(JSON_WAVE_PINS_CACHE);
+            if (obj->config().wave_pins_enabled.value || has_wave_cache) {
+                if (!obj->config().wave_pins_enabled.value || !has_wave_cache ||
+                    root_json.at(JSON_WAVE_PINS_CACHE) != wave_pins_cache_signature(*obj)) {
+                    BOOST_LOG_TRIVIAL(error) << "Wave + Pins cache is incompatible with the current settings; slice again.";
+                    return CLI_IMPORT_CACHE_DATA_CAN_NOT_USE;
+                }
+            }
+
             //boost::nowide::ifstream ifs(file_name);
             //ifs >> root_json;
 

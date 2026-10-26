@@ -16,6 +16,7 @@
 #include "Geometry.hpp"
 #include "I18N.hpp"
 #include "Layer.hpp"
+#include "WavePins/LayerProcess.hpp"
 #include "MutablePolygon.hpp"
 #include "PerimeterGenerator.hpp"
 #include "PrintBase.hpp"
@@ -793,6 +794,9 @@ void PrintObject::prepare_infill()
     this->combine_infill();
     m_print->throw_if_canceled();
 
+    if (m_config.wave_pins_enabled.value)
+        WavePins::prepare_floor_surfaces(*this);
+
 #ifdef SLIC3R_DEBUG_SLICE_PROCESSING
     for (size_t region_id = 0; region_id < this->num_printing_regions(); ++ region_id) {
         for (const Layer *layer : m_layers) {
@@ -829,6 +833,8 @@ void PrintObject::infill()
             }
         );
         m_print->throw_if_canceled();
+        if (m_config.wave_pins_enabled.value)
+            WavePins::tag_floor_paths(*this);
         BOOST_LOG_TRIVIAL(debug) << "Filling layers in parallel - end";
         /*  we could free memory now, but this would make this step not idempotent
         ### $_->fill_surfaces->clear for map @{$_->regions}, @{$object->layers};
@@ -961,6 +967,10 @@ void PrintObject::detect_overhangs_for_lift()
 
 void PrintObject::generate_support_material(bool with_belt_brim)
 {
+    // Support preview also enters here directly after slicing. Wave contacts
+    // depend on emitted model paths, so establish that prerequisite first.
+    if (m_config.wave_pins_enabled.value)
+        this->make_perimeters();
     if (this->set_started(posSupportMaterial)) {
         this->clear_support_layers();
 
@@ -1462,7 +1472,14 @@ bool PrintObject::invalidate_state_by_config_options(
     std::vector<PrintObjectStep> steps;
     bool invalidated = false;
     for (const t_config_option_key &opt_key : opt_keys) {
-        if (   opt_key == "brim_width"
+        if (opt_key.compare(0, 9, "wave_pins_") == 0) {
+            // A wave changes walls, fills, support contacts and process metadata.
+            // Rebuild from geometry on either transition, including On -> Off.
+            steps.emplace_back(posSlice);
+        } else if (m_config.wave_pins_enabled.value && opt_key == "bridge_line_width") {
+            // Wave uses the resolved bridge flow while generating perimeters.
+            steps.emplace_back(posPerimeters);
+        } else if (   opt_key == "brim_width"
             || opt_key == "leading_brim_length"
             || opt_key == "extra_brim_width"
             || opt_key == "brim_object_gap"
@@ -1879,6 +1896,8 @@ bool PrintObject::invalidate_step(PrintObjectStep step)
     // propagate to dependent steps
     if (step == posPerimeters) {
 		invalidated |= this->invalidate_steps({ posPrepareInfill, posInfill, posIroning, posContouring, posSimplifyPath, posSimplifyInfill });
+        if (m_config.wave_pins_enabled.value)
+            invalidated |= this->invalidate_step(posSupportMaterial);
         invalidated |= m_print->invalidate_steps({ psSkirtBrim });
     } else if (step == posPrepareInfill) {
         invalidated |= this->invalidate_steps({ posInfill, posIroning, posContouring, posSimplifyPath, posSimplifyInfill });

@@ -345,6 +345,14 @@ set(lisbslic3r_sources
     InstanceLock.hpp
     Int128.hpp
     KDTreeIndirect.hpp
+    WavePins/Wave.cpp
+    WavePins/Wave.hpp
+    WavePins/ModelPaths.cpp
+    WavePins/ModelPaths.hpp
+    WavePins/SupportPins.cpp
+    WavePins/SupportPins.hpp
+    WavePins/LayerProcess.cpp
+    WavePins/LayerProcess.hpp
     Layer.cpp
     Layer.hpp
     LayerRegion.cpp

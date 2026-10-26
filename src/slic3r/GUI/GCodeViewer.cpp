@@ -418,6 +418,8 @@ static std::string to_string(libvgcode::EGCodeExtrusionRole role)
     case libvgcode::EGCodeExtrusionRole::Brim:                     { return _u8L("Brim"); }
     case libvgcode::EGCodeExtrusionRole::SupportTransition:        { return _u8L("Support transition"); }
     case libvgcode::EGCodeExtrusionRole::Mixed:                    { return _u8L("Mixed"); }
+    // TRN: Experimental Wave toolpaths, shown separately from ordinary overhang walls.
+    case libvgcode::EGCodeExtrusionRole::WavePins:                  { return _u8L("Wave path"); }
     default:                                                       { return _u8L("Unknown"); }
     }
 }
@@ -1713,7 +1715,7 @@ void GCodeViewer::load_as_gcode(const GCodeProcessorResult& gcode_result, const 
             libvgcode::EGCodeExtrusionRole::WipeTower,
             // ORCA
             libvgcode::EGCodeExtrusionRole::BottomSurface, libvgcode::EGCodeExtrusionRole::InternalBridgeInfill, libvgcode::EGCodeExtrusionRole::Brim,
-            libvgcode::EGCodeExtrusionRole::SupportTransition, libvgcode::EGCodeExtrusionRole::Mixed
+            libvgcode::EGCodeExtrusionRole::SupportTransition, libvgcode::EGCodeExtrusionRole::Mixed, libvgcode::EGCodeExtrusionRole::WavePins
             });
     m_paths_bounding_box = BoundingBoxf3(libvgcode::convert(bbox[0]).cast<double>(), libvgcode::convert(bbox[1]).cast<double>());
     m_max_bounding_box = m_paths_bounding_box;
@@ -4393,14 +4395,31 @@ void GCodeViewer::render_legend(float &legend_height, int canvas_width, int canv
         return std::string(buffer);
     };
 
-    auto used_filament_per_role = [this, imperial_units](ExtrusionRole role) {
-        auto it = m_print_statistics.used_filaments_per_role.find(role);
-        if (it == m_print_statistics.used_filaments_per_role.end())
-            return std::make_pair(0.0, 0.0);
+    auto used_filament_per_role = [this, imperial_units](libvgcode::EGCodeExtrusionRole role) {
+        std::pair<double, double> used{0.0, 0.0};
+        const auto &wave_usage = m_print_statistics.used_filaments_wave_pins_per_role;
+        if (role == libvgcode::EGCodeExtrusionRole::WavePins) {
+            for (const auto &entry : wave_usage) {
+                used.first += entry.second.first;
+                used.second += entry.second.second;
+            }
+        } else {
+            const ExtrusionRole physical_role = convert(role);
+            auto it = m_print_statistics.used_filaments_per_role.find(physical_role);
+            if (it != m_print_statistics.used_filaments_per_role.end())
+                used = it->second;
+            // Wave keeps its physical role for printing/accounting; the legend
+            // displays its subset separately without counting that usage twice.
+            auto wave = wave_usage.find(physical_role);
+            if (wave != wave_usage.end()) {
+                used.first = std::max(0.0, used.first - wave->second.first);
+                used.second = std::max(0.0, used.second - wave->second.second);
+            }
+        }
 
         double koef        = imperial_units ? GizmoObjectManipulation::in_to_mm / 1000.0 : 1.0;
         double unit_conver = imperial_units ? GizmoObjectManipulation::oz_to_g : 1;
-        return std::make_pair(it->second.first / koef, it->second.second / unit_conver);
+        return std::make_pair(used.first / koef, used.second / unit_conver);
     };
 
     // get used filament (meters and grams) from used volume in respect to the active extruder
@@ -4608,7 +4627,8 @@ void GCodeViewer::render_legend(float &legend_height, int canvas_width, int canv
         for (libvgcode::EGCodeExtrusionRole role : roles) {
             assert(static_cast<size_t>(role) < libvgcode::GCODE_EXTRUSION_ROLES_COUNT);
             if (static_cast<size_t>(role) < libvgcode::GCODE_EXTRUSION_ROLES_COUNT) {
-                labels.push_back(_u8L(ExtrusionEntity::role_to_string(convert(role))));
+                labels.push_back(role == libvgcode::EGCodeExtrusionRole::WavePins
+                    ? to_string(role) : _u8L(ExtrusionEntity::role_to_string(convert(role))));
                 auto [time, percent] = role_time_and_percent(role);
                 times.push_back((time > 0.0f) ? short_time(get_time_dhms(time)) : "");
                 if (percent == 0) // ORCA remove % symbol from rows
@@ -4617,7 +4637,7 @@ void GCodeViewer::render_legend(float &legend_height, int canvas_width, int canv
                     percent > 0.001 ? ::sprintf(buffer, "%.1f", percent * 100) : ::sprintf(buffer, "<0.1");
                 percents.push_back(buffer);
 
-                auto [model_used_filament_m, model_used_filament_g] = used_filament_per_role(convert(role));
+                auto [model_used_filament_m, model_used_filament_g] = used_filament_per_role(role);
                 ::sprintf(buffer, imperial_units ? "%.2fin" : "%.2fm", model_used_filament_m); // ORCA dont use spacing between value and unit
                 used_filaments_length.push_back(buffer);
                 used_filaments_weight.push_back(format_compact_weight(model_used_filament_g, imperial_units));

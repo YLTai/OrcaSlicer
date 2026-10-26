@@ -151,6 +151,11 @@ public:
     coordf_t            height;        // layer height in unscaled coordinates
     coordf_t            bottom_z() const { return this->print_z - this->height; }
 
+    // Wave paths' emitted footprint and its seed footprint for upper-layer cooling.
+    // Rebuilt with perimeters; empty when the experiment is disabled.
+    Polygons            wave_pins_covered;
+    Polygons            wave_pins_floor;
+
     //Extrusions estimated to be seriously malformed, estimated during "Estimating curled extrusions" step. These lines should be avoided during fast travels.
     CurledLines         curled_lines;
 

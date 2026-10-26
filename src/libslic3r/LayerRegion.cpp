@@ -159,6 +159,12 @@ void LayerRegion::make_perimeters(const SurfaceCollection &slices, const LayerRe
     g.ext_perimeter_flow    = this->flow(frExternalPerimeter);
     g.overhang_flow         = this->bridging_flow(frPerimeter, object_config.thick_bridges);
     g.solid_infill_flow     = this->flow(frSolidInfill);
+    if (object_config.wave_pins_enabled) {
+        g.wave_pins_cancel = [print = this->layer()->object()->print()] {
+            if (print->canceled())
+                throw CanceledException();
+        };
+    }
 
     // Cumulative sum of polygons over all the regions, less what the lower layer could not print.
     ExPolygons lower_slices;
@@ -171,6 +177,14 @@ void LayerRegion::make_perimeters(const SurfaceCollection &slices, const LayerRe
         g.process_arachne();
     else
         g.process_classic();
+
+    if (!g.out_wave_pins_covered.empty()) {
+        // Fill/no-overlap regions are consumed again during infill preparation.
+        // Keep both representations consistent with the emitted wave footprint.
+        *fill_no_overlap = diff_ex(*fill_no_overlap, g.out_wave_pins_covered);
+        append(this->layer()->wave_pins_floor, g.out_wave_pins_covered);
+        append(this->layer()->wave_pins_covered, std::move(g.out_wave_pins_covered));
+    }
 }
 
 #if 1

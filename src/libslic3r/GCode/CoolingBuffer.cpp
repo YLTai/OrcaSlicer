@@ -95,6 +95,8 @@ struct CoolingLine
         // Belt printers: extrusions within the first-layer band above the belt.
         TYPE_BELT_BAND_START           = 1 << 21,
         TYPE_BELT_BAND_END             = 1 << 22,
+        TYPE_WAVE_PINS_FAN_START        = 1 << 23,
+        TYPE_WAVE_PINS_FAN_END          = 1 << 24,
     };
 
     CoolingLine(unsigned int type, size_t  line_start, size_t  line_end) :
@@ -126,6 +128,7 @@ struct CoolingLine
     float   time_max;
     // If marked with the "slowdown" flag, the line has been slowed down.
     bool    slowdown;
+    int     wave_pins_fan_percent = -1;
 };
 
 // Calculate the required per extruder time stretches.
@@ -539,6 +542,16 @@ std::vector<PerExtruderAdjustments> CoolingBuffer::parse_layer_gcode(const std::
                         BOOST_LOG_TRIVIAL(error) << "CoolingBuffer encountered an invalid toolchange, maybe from a custom gcode: " << sline;
                 }
             }
+        } else if (boost::starts_with(sline, ";_WAVE_PINS_FAN_START ")) {
+            constexpr std::string_view prefix = ";_WAVE_PINS_FAN_START ";
+            int percentage = -1;
+            const auto parsed = std::from_chars(sline.data() + prefix.size(), sline.data() + sline.size(), percentage);
+            if (parsed.ec == std::errc{} && percentage >= 0 && percentage <= 100) {
+                line.type = CoolingLine::TYPE_WAVE_PINS_FAN_START;
+                line.wave_pins_fan_percent = percentage;
+            }
+        } else if (boost::starts_with(sline, ";_WAVE_PINS_FAN_END")) {
+            line.type = CoolingLine::TYPE_WAVE_PINS_FAN_END;
         } else if (boost::starts_with(sline, ";_OVERHANG_FAN_START")) {
             line.type = CoolingLine::TYPE_OVERHANG_FAN_START;
         } else if (boost::starts_with(sline, ";_OVERHANG_FAN_END")) {
@@ -757,6 +770,7 @@ std::string CoolingBuffer::apply_layer_cooldown(
     int  supp_interface_fan_speed = 0;
     bool ironing_fan_control= false; // ORCA: Add support for ironing fan speed control
     int  ironing_fan_speed   = 0; // ORCA: Add support for ironing fan speed control
+    int  wave_pins_fan_percent = -1;
     auto change_extruder_set_fan = [ this, layer_id, layer_time, &new_gcode, part_cooling_fan_min_pwm,
         &overhang_fan_control, &overhang_fan_speed,
         &internal_bridge_fan_control, &internal_bridge_fan_speed,
@@ -922,6 +936,12 @@ std::string CoolingBuffer::apply_layer_cooldown(
                 }
             }
             new_gcode.append(line_start, line_end - line_start);
+        } else if (line->type & CoolingLine::TYPE_WAVE_PINS_FAN_START) {
+            wave_pins_fan_percent = line->wave_pins_fan_percent;
+            need_set_fan = true;
+        } else if (line->type & CoolingLine::TYPE_WAVE_PINS_FAN_END) {
+            wave_pins_fan_percent = -1;
+            need_set_fan = true;
         } else if (line->type & CoolingLine::TYPE_OVERHANG_FAN_START) {
             if (overhang_fan_control && !fan_speed_change_requests[CoolingLine::TYPE_OVERHANG_FAN_START]) {
                 need_set_fan = true;
@@ -1078,6 +1098,8 @@ std::string CoolingBuffer::apply_layer_cooldown(
                 // layers of a flat bed do. Leaving the band falls through to the branches below.
                 set_fan(0);
                 fan_speed_change_requests[CoolingLine::TYPE_FORCE_RESUME_FAN] = false;
+            } else if (wave_pins_fan_percent >= 0) {
+                set_fan(wave_pins_fan_percent);
             } else if (fan_speed_change_requests[CoolingLine::TYPE_OVERHANG_FAN_START]){
                 set_fan(overhang_fan_speed);
             } else if (fan_speed_change_requests[CoolingLine::TYPE_INTERNAL_BRIDGE_FAN_START]){ // ORCA: Add support for separate internal bridge fan speed control
