@@ -1,0 +1,22 @@
+name: Wave Pins - Windows x64
+
+on:
+  push:
+    branches:
+      - wave-pins-v0.2
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build_windows:
+    name: Build Wave Pins Windows x64
+    uses: ./.github/workflows/build_check_cache.yml
+    with:
+      os: windows-latest
+      arch: x64
+      compiler: clang
+      build-deps-only: false
+      force-build: false
+    secrets: inherit
