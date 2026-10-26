@@ -1345,6 +1345,7 @@ void PerimeterGenerator::apply_extra_perimeters(ExPolygons &infill_area, const E
             params.flow = this->overhang_flow;
             params.line_spacing = this->object_config->wave_pins_spacing.value;
             params.max_span = this->object_config->wave_pins_max_span.value;
+            params.filter_supported = this->object_config->wave_pins_filter_supported.value;
             params.scaled_resolution = this->m_scaled_resolution;
             params.perimeter_count = std::max(1, this->config->wall_loops.value - outer);
             params.throw_if_canceled = this->wave_pins_cancel;

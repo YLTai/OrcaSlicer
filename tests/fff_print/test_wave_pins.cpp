@@ -17,12 +17,12 @@ using namespace Slic3r;
 
 namespace {
 
-TriangleMesh anchored_shelf()
+TriangleMesh anchored_shelf(double overhang = 8.)
 {
-    TriangleMesh stem = make_cube(4., 20., 6.);
+    TriangleMesh stem = make_cube(12. - overhang, 20., 6.);
     TriangleMesh shelf = make_cube(12., 20., 1.2);
     // The solids overlap to avoid an ambiguous coplanar join at the first
-    // overhanging layer. The unsupported projection is 8 mm wide.
+    // overhanging layer.
     shelf.translate(0.f, 0.f, 5.8f);
     stem.merge(shelf);
     return stem;
@@ -44,6 +44,7 @@ DynamicPrintConfig wave_print_config()
         {"support_interface_top_layers", 2},
         {"raft_layers", 0},
         {"wave_pins_max_span", 12.},
+        {"wave_pins_filter_supported", true},
         {"wave_pins_outer_walls", 1},
         {"wave_pins_floor_layers", 2},
         {"wave_pins_pin_spacing", 6.},
@@ -105,6 +106,7 @@ TEST_CASE("Disabled Wave settings leave native machine commands unchanged", "[Wa
 
     config.set_deserialize_strict({
         {"wave_pins_enabled", false},
+        {"wave_pins_filter_supported", false},
         {"wave_pins_max_span", 3.},
         {"wave_pins_speed", 1.},
         {"wave_pins_spacing", 0.8},
@@ -118,6 +120,39 @@ TEST_CASE("Disabled Wave settings leave native machine commands unchanged", "[Wa
     const std::string retuned = machine_commands(Test::gcode(print));
     require_no_wave_state(print);
     REQUIRE(retuned == native);
+}
+
+TEST_CASE("Filtering shallow Wave overhangs rebuilds native model and support paths", "[WavePins][Regression]")
+{
+    DynamicPrintConfig config = wave_print_config();
+    config.set_deserialize_strict({
+        {"wave_pins_enabled", true},
+        {"wave_pins_filter_supported", false},
+        {"inner_wall_line_width", 0.45},
+        {"outer_wall_line_width", 0.45},
+        {"bridge_line_width", "100%"},
+    });
+    Print print;
+    Model model;
+    // After preserving one wall, this 0.5 mm ledge leaves a shallow candidate
+    // extending less than half a Wave bead beyond the previous layer.
+    Test::init_print({anchored_shelf(0.5)}, print, model, config);
+    const std::string unfiltered = Test::gcode(print);
+    REQUIRE(has_wave_coverage(print));
+    REQUIRE(unfiltered.find(";_WAVE_PINS_START\n") != std::string::npos);
+
+    config.set_deserialize_strict({{"wave_pins_filter_supported", true}});
+    print.apply(model, config);
+    const PrintObject *object = print.get_object(std::size_t(0));
+    REQUIRE_FALSE(object->is_step_done(posPerimeters));
+    REQUIRE_FALSE(object->is_step_done(posSupportMaterial));
+    const std::string filtered = Test::gcode(print);
+    require_no_wave_state(print);
+    REQUIRE(filtered.find(";_WAVE_PINS_START\n") == std::string::npos);
+
+    config.set_deserialize_strict({{"wave_pins_filter_supported", false}});
+    print.apply(model, config);
+    REQUIRE(machine_commands(Test::gcode(print)) == machine_commands(unfiltered));
 }
 
 TEST_CASE("Switching Wave off after slicing restores native output", "[WavePins][Regression]")
@@ -181,6 +216,13 @@ TEST_CASE("Wave support preview follows perimeter prerequisites and invalidation
     // Wave flow uses bridge width while generating perimeters, so changing
     // this otherwise infill-related setting must rebuild contact placement.
     config.set_deserialize_strict({{"bridge_line_width", "90%"}});
+    print.apply(model, config);
+    object = print.get_object(std::size_t(0));
+    REQUIRE_FALSE(object->is_step_done(posPerimeters));
+    REQUIRE_FALSE(object->is_step_done(posSupportMaterial));
+
+    object->generate_support_preview();
+    config.set_deserialize_strict({{"wave_pins_filter_supported", false}});
     print.apply(model, config);
     object = print.get_object(std::size_t(0));
     REQUIRE_FALSE(object->is_step_done(posPerimeters));

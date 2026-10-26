@@ -1041,7 +1041,7 @@ void ConfigManipulation::toggle_print_fff_options(DynamicPrintConfig *config, in
 
     // The dedicated Wave + Pins page always retains its master switch.
     const bool wave_pins_enabled = config->opt_bool("wave_pins_enabled");
-    for (const char *key : {"wave_pins_max_span", "wave_pins_speed", "wave_pins_spacing", "wave_pins_outer_walls",
+    for (const char *key : {"wave_pins_filter_supported", "wave_pins_max_span", "wave_pins_speed", "wave_pins_spacing", "wave_pins_outer_walls",
                            "wave_pins_pin_spacing", "wave_pins_pin_diameter", "wave_pins_fan_speed", "wave_pins_floor_layers"}) {
         toggle_line(key, wave_pins_enabled);
         toggle_field(key, wave_pins_enabled);

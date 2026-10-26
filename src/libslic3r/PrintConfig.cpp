@@ -7327,6 +7327,15 @@ void PrintConfigDef::init_fff_params()
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionBool(false));
 
+    def = this->add("wave_pins_filter_supported", coBool);
+    def->label = L("Filter shallow Wave overhangs");
+    def->category = L("Wave + Pins (experimental)");
+    // TRN: The candidate is the model area inside the preserved outer walls.
+    def->tooltip = L("Keep normal paths where the Wave candidate extends no farther than half the local Wave extrusion width beyond the previous layer. "
+                     "Larger overhangs and their nearby anchors still use Wave. Disable to restore the original Wave coverage.");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(true));
+
     def = this->add("wave_pins_max_span", coFloat);
     def->label = L("Maximum Wave reach");
     def->category = L("Wave + Pins (experimental)");
@@ -7385,7 +7394,7 @@ void PrintConfigDef::init_fff_params()
     def->min = 0.4;
     def->max = 10;
     def->mode = comAdvanced;
-    def->set_default_value(new ConfigOptionFloat(1.2));
+    def->set_default_value(new ConfigOptionFloat(2.0));
 
     def = this->add("wave_pins_fan_speed", coInt);
     def->label = L("Wave part cooling fan");

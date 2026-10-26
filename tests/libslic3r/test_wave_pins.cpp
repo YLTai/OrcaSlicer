@@ -1,4 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
+#include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include "libslic3r/ClipperUtils.hpp"
 #include "libslic3r/ExPolygon.hpp"
@@ -8,6 +10,7 @@
 #include "libslic3r/Point.hpp"
 #include "libslic3r/Polygon.hpp"
 #include "libslic3r/Polyline.hpp"
+#include "libslic3r/PrintConfig.hpp"
 
 #include <stdexcept>
 #include <vector>
@@ -30,6 +33,7 @@ WavePins::Params parameters()
     params.max_span = 12.0;
     params.scaled_resolution = scale_(0.0125);
     params.perimeter_count = 1;
+    params.filter_supported = true;
     return params;
 }
 
@@ -43,6 +47,18 @@ Polylines generated_lines(const WavePins::Result &result)
 }
 
 } // namespace
+
+TEST_CASE("Wave defaults filter shallow overhangs and preserve saved contact diameters", "[WavePins]")
+{
+    DynamicPrintConfig config = DynamicPrintConfig::full_print_config();
+    REQUIRE_FALSE(config.opt_bool("wave_pins_enabled"));
+    REQUIRE(config.opt_bool("wave_pins_filter_supported"));
+    REQUIRE_THAT(config.opt_float("wave_pins_pin_diameter"), Catch::Matchers::WithinAbs(2., 1e-9));
+    // Existing presets and 3MF configs with an explicit diameter are not migrated.
+    config.set_deserialize_strict({{"wave_pins_pin_diameter", 1.2}, {"wave_pins_filter_supported", false}});
+    REQUIRE_THAT(config.opt_float("wave_pins_pin_diameter"), Catch::Matchers::WithinAbs(1.2, 1e-9));
+    REQUIRE_FALSE(config.opt_bool("wave_pins_filter_supported"));
+}
 
 TEST_CASE("Wave regions without an underlying anchor produce no paths", "[WavePins]")
 {
@@ -87,6 +103,49 @@ TEST_CASE("An anchored overhang produces only physically swept coverage", "[Wave
     }
     // A proposed region must not be mistaken for actual emitted coverage.
     REQUIRE(diff(result.covered, union_(swept)).empty());
+}
+
+TEST_CASE("Wave filtering follows the local extrusion width", "[WavePins]")
+{
+    WavePins::Params params = parameters();
+    // Keep the same overlap ratio for different nozzles and local flow widths.
+    const float width = GENERATE(0.3f, 0.45f, 0.7f);
+    const double unsupported_fraction = GENERATE(0.25, 0.75);
+    params.flow = Flow(width, 0.20f, width);
+    params.line_spacing = 0.;
+    const ExPolygons area{ExPolygon(rectangle(0, 0, 12, 16))};
+    const Polygons lower{rectangle(0, 0, 12 - unsupported_fraction * width, 16)};
+    const WavePins::Result filtered = WavePins::generate(area, lower, params);
+    if (unsupported_fraction < 0.5) {
+        REQUIRE(filtered.paths.empty());
+        REQUIRE(filtered.covered.empty());
+    } else {
+        REQUIRE_FALSE(filtered.paths.empty());
+        REQUIRE_FALSE(filtered.covered.empty());
+    }
+
+    params.filter_supported = false;
+    const WavePins::Result unfiltered = WavePins::generate(area, lower, params);
+    REQUIRE_FALSE(unfiltered.paths.empty());
+    REQUIRE_FALSE(unfiltered.covered.empty());
+}
+
+TEST_CASE("Wave filtering keeps steep sections without covering a connected shallow rim", "[WavePins]")
+{
+    const ExPolygons area{ExPolygon(rectangle(0, 0, 12, 40))};
+    // One connected unsupported strip: 8 mm wide at the bottom, 0.1 mm
+    // wide at the top. Classifying the whole strip would Wave both sections.
+    const Polygons lower = union_(Polygons{rectangle(0, 0, 4, 40)},
+                                  Polygons{rectangle(0, 20, 11.9, 40)});
+    WavePins::Params params = parameters();
+    const WavePins::Result filtered = WavePins::generate(area, lower, params);
+    REQUIRE_FALSE(intersection(filtered.covered, Polygons{rectangle(6, 2, 10, 15)}).empty());
+    REQUIRE(intersection(filtered.covered, Polygons{rectangle(10, 25, 12, 38)}).empty());
+    REQUIRE(diff(filtered.covered, to_polygons(area)).empty());
+
+    params.filter_supported = false;
+    const WavePins::Result unfiltered = WavePins::generate(area, lower, params);
+    REQUIRE_FALSE(intersection(unfiltered.covered, Polygons{rectangle(10, 25, 12, 38)}).empty());
 }
 
 TEST_CASE("Wave propagation keeps ventilation holes open", "[WavePins]")
@@ -156,11 +215,25 @@ TEST_CASE("Every released contact island keeps printable pins", "[WavePins]")
 
 TEST_CASE("Contacts too narrow for a pin retain their original support", "[WavePins]")
 {
-    const Polygons contacts{rectangle(0, 0, 0.5, 20)};
+    const double diameter = GENERATE(1.2, 2.0);
+    const Polygons contacts{rectangle(0, 0, 0.75 * diameter, 20)};
     const WavePins::PinContacts plan = WavePins::plan_pin_contacts(
-        contacts, contacts, {}, 6.0, 1.2);
+        contacts, contacts, {}, 6.0, diameter);
     REQUIRE(plan.removable.empty());
     REQUIRE(plan.retained.empty());
+}
+
+TEST_CASE("Larger pin contacts retain more area without crossing a ventilation hole", "[WavePins]")
+{
+    const Polygons contacts = diff(Polygons{rectangle(0, 0, 30, 30)},
+                                   Polygons{rectangle(10, 10, 20, 20)});
+    const WavePins::PinContacts small = WavePins::plan_pin_contacts(contacts, contacts, {}, 8., 1.2);
+    const WavePins::PinContacts large = WavePins::plan_pin_contacts(contacts, contacts, {}, 8., 2.);
+    REQUIRE_FALSE(small.retained.empty());
+    REQUIRE_FALSE(large.removable.empty());
+    REQUIRE(area(large.retained) > area(small.retained));
+    REQUIRE(diff(large.retained, contacts).empty());
+    REQUIRE(intersection(large.retained, Polygons{rectangle(10, 10, 20, 20)}).empty());
 }
 
 TEST_CASE("Invalid pin spacing leaves original support intact", "[WavePins]")

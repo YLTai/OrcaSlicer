@@ -3505,6 +3505,7 @@ void TabPrint::build()
 
         optgroup = page->new_optgroup(L("Wave paths"), L"param_line_width");
         optgroup->append_single_option_line("wave_pins_max_span");
+        optgroup->append_single_option_line("wave_pins_filter_supported");
         optgroup->append_single_option_line("wave_pins_speed");
         optgroup->append_single_option_line("wave_pins_spacing");
         optgroup->append_single_option_line("wave_pins_outer_walls");

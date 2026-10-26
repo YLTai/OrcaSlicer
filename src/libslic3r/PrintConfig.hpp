@@ -1309,6 +1309,7 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionBool,                enable_support))
     // Native Wave + Pins experiment. The disabled default preserves upstream slicing.
     ((ConfigOptionBool,                wave_pins_enabled))
+    ((ConfigOptionBool,                wave_pins_filter_supported))
     ((ConfigOptionFloat,               wave_pins_max_span))
     ((ConfigOptionFloat,               wave_pins_speed))
     ((ConfigOptionFloat,               wave_pins_spacing))

@@ -35,6 +35,7 @@ WavePins::Params parameters()
     params.line_spacing = 0.35;
     params.max_span = 12.0;
     params.scaled_resolution = scale_(0.0125);
+    params.filter_supported = true;
     return params;
 }
 
@@ -189,6 +190,23 @@ TEST_CASE("A rejected unanchored Wave candidate leaves its native objects untouc
     REQUIRE(sample.perimeters.can_sort());
     REQUIRE(sample.perimeters.can_reverse());
     REQUIRE(sample.fills.surfaces.front().expolygon.contour.points == fill_contour);
+}
+
+TEST_CASE("Filtering a shallow Wave candidate preserves native walls and fill", "[WavePinsModelPaths]")
+{
+    IslandPaths sample;
+    sample.params.filter_supported = true;
+    const double inset = sample.params.flow.spacing();
+    sample.lower = Polygons{rectangle(0, 0, 12 - inset - 0.1, 16)};
+    const ExtrusionEntitiesPtr original = sample.perimeters.entities;
+    const Points fill_contour = sample.fills.surfaces.front().expolygon.contour.points;
+    REQUIRE(sample.apply(1).empty());
+    REQUIRE(sample.perimeters.entities == original);
+    REQUIRE(sample.perimeters.can_sort());
+    REQUIRE(sample.fills.surfaces.front().expolygon.contour.points == fill_contour);
+
+    sample.params.filter_supported = false;
+    REQUIRE_FALSE(sample.apply(1).empty());
 }
 
 TEST_CASE("Wave replacement declines a path with nonplanar extrusion state", "[WavePinsModelPaths]")

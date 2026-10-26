@@ -38171,3 +38171,14 @@ msgstr "上覆层保护"
 #: src/slic3r/GUI/GCodeViewer.cpp
 msgid "Wave path"
 msgstr "Wave 路径"
+
+# AI Translated
+#: src/libslic3r/PrintConfig.cpp
+msgid "Filter shallow Wave overhangs"
+msgstr "过滤轻微悬垂的 Wave 区域"
+
+# AI Translated
+#. TRN: The candidate is the model area inside the preserved outer walls.
+#: src/libslic3r/PrintConfig.cpp
+msgid "Keep normal paths where the Wave candidate extends no farther than half the local Wave extrusion width beyond the previous layer. Larger overhangs and their nearby anchors still use Wave. Disable to restore the original Wave coverage."
+msgstr "当 Wave 候选区域伸出上一层的距离不超过局部 Wave 挤出线宽的一半时，保留普通路径。悬垂更大的区域及其附近的锚定区域仍使用 Wave。关闭后恢复原有的 Wave 覆盖范围。"

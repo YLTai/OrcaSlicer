@@ -19,6 +19,7 @@ struct Params {
     double max_span = 12.0;    // maximum distance from underlying model, in mm.
     double scaled_resolution = 1.0;
     int perimeter_count = 1;  // controls the supported anchor band only.
+    bool filter_supported = true; // omit shallow overhangs within half a local bead width.
     std::function<void()> throw_if_canceled;
 };
 

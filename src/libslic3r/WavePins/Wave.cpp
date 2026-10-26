@@ -437,14 +437,24 @@ Result generate(const ExPolygons &infill_area, const Polygons &lower_slices, con
     const double min_growth = 0.02 * double(spacing) * double(spacing);
     const BoundingBox bounds = get_extents(infill_area).inflated(SCALED_EPSILON);
     const Polygons lower = ClipperUtils::clip_clipper_polygons_with_subject_bbox(lower_slices, bounds);
-    const Polygons overhangs = diff(infill_area, lower);
+    Polygons overhangs = diff(infill_area, lower);
+    if (params.filter_supported && !overhangs.empty()) {
+        // Classify locally, not per connected island: one steep section of a
+        // curved shell must not turn its entire shallow rim into slow Wave paths.
+        // Expand back to the real lower-layer boundary so retained Wave regions
+        // keep their anchors; the expanded lower layer is never an actual seed.
+        const Polygons steep = diff(overhangs, offset(lower, float(half_width), jtRound, 0.));
+        overhangs = intersection(overhangs, offset(steep, float(half_width), jtRound, 0.));
+    }
     if (overhangs.empty())
         return {};
     const Polygons anchors = intersection(infill_area, lower);
     if (anchors.empty())
         return {};
     const Polygons inset_anchors = diff(anchors, expand(overhangs, anchor_depth + 0.1 * flow.scaled_width(), jtSquare, 0.));
-    const Polygons candidate = diff(infill_area, inset_anchors);
+    const Polygons candidate = params.filter_supported
+        ? union_(overhangs, diff(anchors, inset_anchors))
+        : diff(infill_area, inset_anchors);
     const Polygons reach = offset(lower, float(scale_(params.max_span)), jtRound, 0.);
     Result result;
     Polylines emitted;

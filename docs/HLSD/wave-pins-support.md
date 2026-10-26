@@ -23,7 +23,7 @@ and Steven McCulloch retained in the source under AGPL-3.0-or-later.
 ## Settings and eligibility
 
 The process settings have a dedicated **Wave + Pins (experimental)** page, after
-the upstream pages. All ten experimental settings are on that page, grouped
+the upstream pages. All eleven experimental settings are on that page, grouped
 into the master switch, Wave paths, support contacts and upper-layer protection.
 The ordinary Support page retains its upstream contents. The master switch
 is visible in Simple mode and defaults to disabled. Detailed controls appear
@@ -35,12 +35,13 @@ settings.
 | Configuration key | Default | Meaning |
 | --- | --- | --- |
 | `wave_pins_enabled` | `false` | Master switch. |
+| `wave_pins_filter_supported` | `true` | Keep native paths on shallow Wave candidates. |
 | `wave_pins_max_span` | 12 mm | Maximum unsupported reach from the model below. |
 | `wave_pins_speed` | 2 mm/s | Upper speed limit for Wave paths. |
 | `wave_pins_spacing` | 0 | Automatic spacing, 85% of local Wave extrusion width. |
 | `wave_pins_outer_walls` | 1 | Ordinary outer wall loops preserved at each boundary. |
 | `wave_pins_pin_spacing` | 8 mm | Target spacing along the inset contact boundaries. |
-| `wave_pins_pin_diameter` | 1.2 mm | Requested retained contact footprint diameter. |
+| `wave_pins_pin_diameter` | 2 mm | Requested retained contact footprint diameter. |
 | `wave_pins_fan_speed` | -1 | Inherit filament cooling, including native overhang/bridge control; 0-100 explicitly overrides the part fan on Wave paths. |
 | `wave_pins_floor_layers` | 3 | Solid, speed-limited model layers above Wave footprints. |
 | `wave_pins_floor_speed` | 20 mm/s | Upper speed limit in those protected layers. |
@@ -61,6 +62,16 @@ or volumetric-flow limits still apply. Fan override affects the part cooling fan
 not the auxiliary fan. The feature introduces no nozzle temperature override.
 
 ## Model path generation
+
+The shallow-overhang filter operates on the candidate inside the preserved outer
+walls. It excludes protrusions no wider than half the local Wave extrusion width
+relative to the previous model layer. Classification is local: a steep section
+does not cause an entire connected shallow rim to become Wave. The retained
+regions extend back to the actual lower-layer boundary and include the nearby
+supported anchor band; expanding the lower-layer mask for classification never
+creates fictitious anchors. Native paths and support remain outside emitted
+coverage. This is a geometric heuristic, not a calibrated material overhang limit.
+Disabling the filter restores the original candidate construction.
 
 `PerimeterGenerator::apply_extra_perimeters` calls `WavePins::apply_to_island`
 after the ordinary Classic or Arachne wall generation for an island. It supplies
@@ -128,6 +139,9 @@ sheet. They cannot clamp the model across an air gap: restraint against upward
 curl requires some adhesion. Removing all contact marks is therefore not a
 guaranteed outcome. Contact diameter describes the requested geometry, not a
 guaranteed printed point size after native line generation and material spreading.
+The 2 mm default gives a larger contact footprint than a 1.2 mm contact, at the
+cost of potentially larger removal marks. It is not a calibrated P2S/PETG setting.
+Narrow components which cannot fit the requested diameter retain ordinary support.
 
 ## Upper layers and process overrides
 
@@ -193,6 +207,12 @@ not universal PETG recommendations.
 
 ## Disabled behavior and caching
 
+Projects and presets missing `wave_pins_filter_supported` use its enabled default;
+an explicitly saved value is retained. The master switch remains disabled by
+default. Existing explicit pin diameters, including 1.2 mm, are preserved; only
+configurations without a diameter use the 2 mm default. The new filter key is part
+of the existing cache signature, so older enabled caches require regeneration.
+
 All geometry-changing hooks test the master switch. New path flags default to
 false. Changing any `wave_pins_` option invalidates slicing from the slice step,
 including an On-to-Off transition; perimeter regeneration clears the layer masks.
@@ -214,11 +234,13 @@ cache whose settings differ. Ordinary disabled caches omit the additional fields
 
 `tests/libslic3r/test_wave_pins.cpp` exercises real polygon geometry, emitted
 coverage, holes, anchor and reach fallback, cancellation, contact preservation and
-model-path replacement. The tests use the same native geometry implementation as
+model-path replacement. Shallow-candidate tests cover local extrusion widths,
+mixed shallow and steep sections, and preservation of native walls and fill.
+The tests use the same native geometry implementation as
 the slicer. `tests/slic3rutils/test_wave_pins_preview.cpp` checks renderer color and
 filter compatibility. The FFF suite's `test_wave_pins_preview.cpp` covers preview
 scope boundaries, arcs, reopening and unchanged physical move properties;
-`test_wave_pins.cpp` covers the slicing switch and support prerequisites.
+`test_wave_pins.cpp` covers the slicing switch, filter toggles and support prerequisites.
 
 Geometric tests do not establish peel force, curl resistance, dimensional error,
 or surface quality on a printer. Evaluate a representative full-thickness sample with

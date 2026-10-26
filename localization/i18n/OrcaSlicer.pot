@@ -31397,3 +31397,12 @@ msgstr ""
 #: src/slic3r/GUI/GCodeViewer.cpp
 msgid "Wave path"
 msgstr ""
+
+#: src/libslic3r/PrintConfig.cpp
+msgid "Filter shallow Wave overhangs"
+msgstr ""
+
+#. TRN: The candidate is the model area inside the preserved outer walls.
+#: src/libslic3r/PrintConfig.cpp
+msgid "Keep normal paths where the Wave candidate extends no farther than half the local Wave extrusion width beyond the previous layer. Larger overhangs and their nearby anchors still use Wave. Disable to restore the original Wave coverage."
+msgstr ""
