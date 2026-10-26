@@ -38123,11 +38123,6 @@ msgid "Maximum speed of model paths in the protected layers immediately above a 
 msgstr "紧邻 Wave 区域上方受限速保护层内模型路径的最大速度。"
 
 # AI Translated
-#: src/slic3r/GUI/Tab.cpp
-msgid "Wave + Pins (experimental)"
-msgstr "Wave + Pins＋支点（实验性）"
-
-# AI Translated
 #: src/libslic3r/Print.cpp
 msgid "Wave + Pins requires Normal automatic Snug support, a positive Top Z distance, and at least one top interface layer."
 msgstr "Wave + Pins＋支点需要启用普通自动支撑、紧贴样式，将顶部 Z 间隙设为正值，并设置至少一层顶部支撑面。"

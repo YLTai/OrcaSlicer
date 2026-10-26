@@ -31358,10 +31358,6 @@ msgstr ""
 msgid "Maximum speed of model paths in the protected layers immediately above a Wave region."
 msgstr ""
 
-#: src/slic3r/GUI/Tab.cpp
-msgid "Wave + Pins (experimental)"
-msgstr ""
-
 #: src/libslic3r/Print.cpp
 msgid "Wave + Pins requires Normal automatic Snug support, a positive Top Z distance, and at least one top interface layer."
 msgstr ""
